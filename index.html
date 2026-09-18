@@ -3186,12 +3186,42 @@ async function deleteName(id) {
 
     try {
 
-        await supabaseRequest(
-            "entered_by_names",
-            "DELETE",
-            null,
-            "?id=eq." + encodeURIComponent(id)
-        );
+        /*
+           supabaseRequest sends "Prefer: return=representation", so a
+           successful DELETE returns the row(s) that were actually
+           removed on the server. If Supabase's Row Level Security has
+           no DELETE policy on this table, the request still comes
+           back as a normal 200 response with an EMPTY array (no
+           error is thrown) - the row is never actually removed from
+           the database, even though it looks deleted in this tab.
+           That mismatch is exactly what caused the deleted name to
+           silently reappear after closing and reopening the app: the
+           UI updated locally, but the server never removed the row.
+
+           To fix that, we now check what the server actually
+           reports as deleted. We only remove the name locally if the
+           server confirms it was removed; otherwise we tell the user
+           so the row is not left silently un-deleted.
+        */
+        const deleted =
+            await supabaseRequest(
+                "entered_by_names",
+                "DELETE",
+                null,
+                "?id=eq." + encodeURIComponent(id)
+            );
+
+        if (!Array.isArray(deleted) || deleted.length === 0) {
+            alert(
+                "The name could not be deleted from the server " +
+                "(it may still appear after reopening).\n\n" +
+                "This usually means the \"entered_by_names\" table in " +
+                "Supabase does not have a DELETE policy enabled for " +
+                "this app's access role. Please add/enable a DELETE " +
+                "policy on that table and try again."
+            );
+            return;
+        }
 
         names = names.filter(x => String(x.id) !== String(id));
 
@@ -5953,14 +5983,40 @@ function buildDateList(from, to) {
 
 function excelDateFromISO(isoDate) {
 
+    /*
+       IMPORTANT: We deliberately do NOT return a JS Date object here.
+
+       ExcelJS converts JS Date objects to Excel's internal date serial
+       number using the BROWSER'S LOCAL TIMEZONE OFFSET. For users in
+       timezones ahead of UTC (e.g. India, UTC+5:30), this conversion
+       lands one day short, so every date written to the workbook
+       (the Machine Feeder Details header row) showed up exactly one
+       day earlier than the date the reading was actually saved on -
+       even though the underlying
+       reading values were already correctly matched to their real
+       dates in the code. The Saved Readings tab never went through
+       this conversion, which is why it always displayed correctly.
+
+       Fix: compute the Excel date serial number ourselves using pure
+       UTC arithmetic (no timezone involved anywhere) and hand ExcelJS
+       a plain number instead of a Date object. Excel's date system
+       counts days from 1899-12-30 (accounting for the historical
+       1900 leap-year bug), so day 1 = 1899-12-31.
+    */
+
     const parts =
         isoDate.split("-").map(Number);
 
-    return new Date(
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const EXCEL_EPOCH_UTC = Date.UTC(1899, 11, 30);
+
+    const targetUTC = Date.UTC(
         parts[0],
         parts[1] - 1,
         parts[2]
     );
+
+    return Math.round((targetUTC - EXCEL_EPOCH_UTC) / MS_PER_DAY);
 }
 
 
@@ -6407,109 +6463,10 @@ async function downloadExcel() {
             }
         }
 
-        /* =========================================================
-           CONSUMPTION SHEET
-           Only actual saved readings are included. Missing dates are not
-           fabricated and future dates never receive copied readings.
-        ========================================================= */
-        const consumptionSheet =
-            workbook.addWorksheet("Consumption");
-
-        const consumptionHeaders = [
-            "Date",
-            "Category",
-            "Meter Name",
-            "Unit",
-            "Previous Actual Date",
-            "Previous Actual",
-            "Today Actual",
-            "Previous MF",
-            "Today MF",
-            "Consumption"
-        ];
-
-        consumptionHeaders.forEach((header, index) => {
-            const cell = consumptionSheet.getCell(1, index + 1);
-            cell.value = header;
-            cell.font = { bold: true, size: 11 };
-            cell.alignment = { horizontal: "center", vertical: "center" };
-        });
-
-        let consumptionRow = 2;
-
-        meters.forEach(meter => {
-            const history =
-                (readingsByMeter[meter.id] || [])
-                    .slice()
-                    .filter(r => {
-                        const savedDate = String(r.reading_date || "").slice(0, 10);
-                        return savedDate >= from && savedDate <= to;
-                    })
-                    .sort((a, b) =>
-                        String(a.reading_date).localeCompare(String(b.reading_date))
-                    );
-
-            let previous = null;
-
-            history.forEach(current => {
-                const currentValue = String(current.reading ?? "").trim();
-
-                if (!currentValue)
-                    return;
-
-                const row = consumptionSheet.getRow(consumptionRow++);
-                const runHour = isRunHourMeter(meter);
-                const currentMF = runHour ? null : Number(current.mf ?? meter.mf ?? 0);
-                const previousMF = previous && !runHour
-                    ? Number(previous.mf ?? meter.mf ?? 0)
-                    : null;
-
-                row.getCell(1).value = excelDateFromISO(String(current.reading_date).slice(0, 10));
-                row.getCell(1).numFmt = "dd-mm-yyyy";
-                row.getCell(2).value = meter.category;
-                row.getCell(3).value = meter.name;
-                row.getCell(4).value = runHour ? "HH:MM:SS" : (meter.unit || "");
-                row.getCell(5).value = previous
-                    ? excelDateFromISO(String(previous.reading_date).slice(0, 10))
-                    : null;
-                if (previous) row.getCell(5).numFmt = "dd-mm-yyyy";
-                row.getCell(6).value = previous ? readingValueForExcel(previous.reading) : null;
-                row.getCell(7).value = readingValueForExcel(currentValue);
-                row.getCell(8).value = runHour ? "NA" : previousMF;
-                row.getCell(9).value = runHour ? "NA" : currentMF;
-
-                if (previous) {
-                    if (runHour) {
-                        const p = timeToSeconds(previous.reading);
-                        const c = timeToSeconds(currentValue);
-                        row.getCell(10).value =
-                            p !== null && c !== null && c >= p
-                            ? formatRunHour(c - p)
-                            : null;
-                    } else {
-                        const p = Number(previous.reading);
-                        const c = Number(currentValue);
-                        row.getCell(10).value =
-                            Number.isFinite(p) && Number.isFinite(c)
-                            ? (c * currentMF) - (p * previousMF)
-                            : null;
-                    }
-                }
-
-                previous = current;
-            });
-        });
-
-        consumptionSheet.freezePanes = "A2";
-        const consumptionWidths = [14, 32, 36, 14, 20, 18, 18, 15, 15, 20];
-        consumptionWidths.forEach((width, i) => {
-            consumptionSheet.getColumn(i + 1).width = width;
-        });
-
-        for (let row = 2; row < consumptionRow; row++) {
-            consumptionSheet.getCell(row, 1).alignment = { horizontal: "center" };
-            consumptionSheet.getCell(row, 5).alignment = { horizontal: "center" };
-        }
+        /*
+           NOTE: The Consumption sheet has been intentionally removed from
+           this export. Only the "Machine Feeder Details" sheet is written.
+        */
 
         const buffer =
             await workbook.xlsx.writeBuffer();
