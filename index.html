@@ -1,0 +1,6688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Energy Meter Tracker</title>
+
+<style>
+
+/* =========================================================
+   GLOBAL
+========================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #17365d;
+    --primary-dark: #0e2745;
+    --primary-light: #e8f0fa;
+
+    --accent: #198754;
+    --accent-light: #e7f5ed;
+
+    --danger: #dc3545;
+    --danger-light: #fdebed;
+
+    --warning: #f0ad4e;
+    --warning-light: #fff4df;
+
+    --info: #0dcaf0;
+    --info-light: #e8f9fd;
+
+    --background: #f3f6fa;
+    --card: #ffffff;
+    --border: #dce3eb;
+
+    --text: #1d2733;
+    --muted: #6c757d;
+
+    --shadow:
+        0 3px 12px rgba(23,54,93,.08);
+
+    --shadow-hover:
+        0 7px 20px rgba(23,54,93,.14);
+}
+
+body {
+    margin: 0;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background:
+        linear-gradient(
+            180deg,
+            #eef3f8 0%,
+            #f7f9fb 100%
+        );
+
+    color: var(--text);
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+header {
+    background:
+        linear-gradient(
+            135deg,
+            #0e2745,
+            #17365d 55%,
+            #24588f
+        );
+
+    color: white;
+
+    padding: 20px 15px;
+
+    box-shadow:
+        0 3px 12px rgba(0,0,0,.18);
+}
+
+.header-inner {
+    max-width: 1500px;
+    margin: auto;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-icon {
+    width: 48px;
+    height: 48px;
+
+    border-radius: 12px;
+
+    background:
+        rgba(255,255,255,.15);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 25px;
+
+    border:
+        1px solid rgba(255,255,255,.2);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 23px;
+    font-weight: 700;
+}
+
+.header-subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: .75;
+}
+
+.header-status {
+    padding: 8px 12px;
+    border-radius: 20px;
+
+    background:
+        rgba(255,255,255,.12);
+
+    border:
+        1px solid rgba(255,255,255,.18);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   MAIN CONTAINER
+========================================================= */
+
+.container {
+    max-width: 1500px;
+    margin: auto;
+    padding: 18px;
+}
+
+
+/* =========================================================
+   TABS
+========================================================= */
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin-bottom: 18px;
+
+    background: white;
+
+    padding: 8px;
+
+    border-radius: 12px;
+
+    box-shadow: var(--shadow);
+
+    border:
+        1px solid var(--border);
+}
+
+.tabs button {
+    border: none;
+
+    padding: 11px 17px;
+
+    background: transparent;
+
+    color: #536273;
+
+    cursor: pointer;
+
+    border-radius: 8px;
+
+    font-weight: 600;
+
+    font-size: 13px;
+
+    transition:
+        .2s ease;
+}
+
+.tabs button:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.tabs button.active {
+    background:
+        linear-gradient(
+            135deg,
+            var(--primary),
+            #24588f
+        );
+
+    color: white;
+
+    box-shadow:
+        0 3px 8px rgba(23,54,93,.25);
+}
+
+
+/* =========================================================
+   TAB CONTENT
+========================================================= */
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.card {
+    background: var(--card);
+
+    padding: 18px;
+
+    border-radius: 12px;
+
+    margin-bottom: 16px;
+
+    box-shadow: var(--shadow);
+
+    border:
+        1px solid var(--border);
+}
+
+.card-title {
+    margin: 0 0 4px 0;
+
+    font-size: 18px;
+
+    color: var(--primary);
+}
+
+.card-subtitle {
+    margin: 0 0 16px 0;
+
+    color: var(--muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ENTRY TOP CONTROLS
+========================================================= */
+
+.entry-controls {
+    display: grid;
+
+    grid-template-columns:
+        minmax(200px, 280px)
+        minmax(250px, 350px);
+
+    gap: 18px;
+
+    align-items: end;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control-group label {
+    font-size: 12px;
+    color: #536273;
+    font-weight: 700;
+}
+
+.control-row {
+    display: flex;
+    gap: 7px;
+}
+
+.control-row select {
+    flex: 1;
+}
+
+input,
+select {
+    padding: 10px 11px;
+
+    border:
+        1px solid #cbd4df;
+
+    border-radius: 7px;
+
+    background: white;
+
+    color: var(--text);
+
+    font-size: 13px;
+
+    outline: none;
+
+    transition:
+        border-color .2s,
+        box-shadow .2s;
+}
+
+input:focus,
+select:focus {
+    border-color: #4b79a8;
+
+    box-shadow:
+        0 0 0 3px rgba(23,54,93,.09);
+}
+
+
+/* =========================================================
+   CATEGORY BUTTONS
+========================================================= */
+
+.category-section {
+    margin-bottom: 16px;
+}
+
+.section-label {
+    display: block;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    color: var(--muted);
+
+    margin-bottom: 8px;
+}
+
+.category-buttons {
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 10px;
+}
+
+.category-buttons button {
+    position: relative;
+
+    text-align: left;
+
+    padding: 13px 15px;
+
+    border:
+        1px solid var(--border);
+
+    background: white;
+
+    color: #475569;
+
+    border-radius: 9px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    box-shadow:
+        0 2px 5px rgba(0,0,0,.03);
+
+    transition:
+        .2s ease;
+}
+
+.category-buttons button:hover {
+    transform: translateY(-1px);
+
+    box-shadow:
+        var(--shadow-hover);
+
+    border-color:
+        #aebed0;
+}
+
+.category-buttons button.active {
+    color: white;
+
+    border-color:
+        var(--primary);
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--primary),
+            #24588f
+        );
+
+    box-shadow:
+        0 4px 12px rgba(23,54,93,.22);
+}
+
+.category-number {
+    display: inline-flex;
+
+    width: 25px;
+    height: 25px;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 7px;
+
+    background:
+        rgba(255,255,255,.16);
+
+    margin-right: 7px;
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-wrap {
+    overflow-x: auto;
+
+    border-radius: 9px;
+
+    border:
+        1px solid var(--border);
+}
+
+table {
+    width: 100%;
+
+    border-collapse: separate;
+
+    border-spacing: 0;
+
+    background: white;
+
+    min-width: 850px;
+}
+
+th,
+td {
+    border-bottom:
+        1px solid #e6ebf0;
+
+    border-right:
+        1px solid #e6ebf0;
+
+    padding: 9px 8px;
+
+    text-align: center;
+
+    font-size: 12px;
+}
+
+th:last-child,
+td:last-child {
+    border-right: none;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+th {
+    background:
+        linear-gradient(
+            180deg,
+            #edf3fa,
+            #e3ebf5
+        );
+
+    color: #334e68;
+
+    font-weight: 700;
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 1;
+
+    white-space: nowrap;
+}
+
+tbody tr {
+    transition:
+        background .15s ease;
+}
+
+tbody tr:hover {
+    background:
+        #f8fbfe;
+}
+
+td.meter-name {
+    text-align: left;
+
+    font-weight: 600;
+
+    color: #253b53;
+
+    min-width: 210px;
+}
+
+
+/* =========================================================
+   ENTRY TABLE
+========================================================= */
+
+.entry-table th:nth-child(3) {
+    background:
+        #dcefe5;
+
+    color:
+        #145c38;
+}
+
+.entry-table th:nth-child(6) {
+    background:
+        #fff0d8;
+
+    color:
+        #805b18;
+}
+
+.entry-table th:nth-child(7) {
+    background:
+        #e4edf8;
+
+    color:
+        var(--primary);
+}
+
+.reading-input {
+    width: 145px;
+
+    background:
+        #fafffc;
+
+    border:
+        1px solid #9ac7ab;
+
+    text-align: right;
+
+    font-weight: 600;
+}
+
+.reading-input:focus {
+    border-color:
+        var(--accent);
+
+    box-shadow:
+        0 0 0 3px
+        rgba(25,135,84,.10);
+}
+
+.consumption-cell {
+    font-weight: 700;
+
+    color:
+        #8a6115;
+
+    background:
+        #fffaf0;
+
+    min-width: 120px;
+}
+
+.previous-cell {
+    color:
+        #536273;
+
+    background:
+        #f8fafc;
+}
+
+.mf-cell {
+    font-weight: 600;
+
+    color:
+        var(--primary);
+}
+
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+button {
+    font-family: inherit;
+}
+
+.btn {
+    background:
+        linear-gradient(
+            135deg,
+            var(--primary),
+            #24588f
+        );
+
+    color: white;
+
+    border: none;
+
+    padding: 9px 14px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    font-size: 12px;
+
+    box-shadow:
+        0 2px 5px rgba(23,54,93,.15);
+
+    transition:
+        .18s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 4px 10px rgba(23,54,93,.22);
+}
+
+.btn-green {
+    background:
+        linear-gradient(
+            135deg,
+            #198754,
+            #24a568
+        );
+
+    color: white;
+
+    border: none;
+
+    padding: 9px 14px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    font-size: 12px;
+
+    box-shadow:
+        0 2px 5px rgba(25,135,84,.15);
+}
+
+.btn-green:hover {
+    transform: translateY(-1px);
+}
+
+.btn-red {
+    background:
+        linear-gradient(
+            135deg,
+            #dc3545,
+            #e45b68
+        );
+
+    color: white;
+
+    border: none;
+
+    padding: 9px 14px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    font-size: 12px;
+}
+
+.btn-gray {
+    background:
+        #687789;
+
+    color: white;
+
+    border: none;
+
+    padding: 9px 14px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    font-size: 12px;
+}
+
+.btn-small {
+    padding: 6px 9px;
+
+    font-size: 11px;
+
+    border-radius: 6px;
+}
+
+button:disabled {
+    opacity: .35;
+
+    cursor: not-allowed;
+
+    transform: none !important;
+}
+
+
+/* =========================================================
+   SAVE AREA
+========================================================= */
+
+.save-area {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+
+    margin-top: 16px;
+}
+
+.save-note {
+    color:
+        var(--muted);
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.status {
+    padding: 10px 13px;
+
+    margin-top: 12px;
+
+    border-radius: 8px;
+
+    font-size: 12px;
+
+    font-weight: 600;
+}
+
+.success {
+    background:
+        var(--accent-light);
+
+    color:
+        #146c43;
+
+    border:
+        1px solid #b7dfc8;
+}
+
+.error {
+    background:
+        var(--danger-light);
+
+    color:
+        #a71d2a;
+
+    border:
+        1px solid #f0b8bf;
+}
+
+.info {
+    background:
+        var(--info-light);
+
+    color:
+        #087990;
+
+    border:
+        1px solid #b6e9f2;
+}
+
+
+/* =========================================================
+   PAGE HEADINGS
+========================================================= */
+
+.page-heading {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 15px;
+
+    margin-bottom: 15px;
+}
+
+.page-heading h2 {
+    margin: 0;
+
+    color:
+        var(--primary);
+
+    font-size: 20px;
+}
+
+.page-heading p {
+    margin: 4px 0 0;
+
+    color:
+        var(--muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   SEARCH CONTROLS
+========================================================= */
+
+.search-panel {
+    display: flex;
+
+    gap: 10px;
+
+    align-items: end;
+
+    flex-wrap: wrap;
+}
+
+.search-field {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 5px;
+}
+
+.search-field label {
+    font-size: 11px;
+
+    font-weight: 700;
+
+    color:
+        var(--muted);
+}
+
+
+/* =========================================================
+   MASTER
+========================================================= */
+
+.master-toolbar {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+}
+
+.master-actions {
+    display: flex;
+
+    gap: 7px;
+
+    flex-wrap: wrap;
+}
+
+.master-category-title {
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+    margin: 0 0 14px;
+
+    color:
+        var(--primary);
+
+    font-size: 16px;
+}
+
+.master-category-title::before {
+    content: "";
+
+    display: inline-block;
+
+    width: 5px;
+
+    height: 22px;
+
+    border-radius: 5px;
+
+    background:
+        var(--primary);
+}
+
+.master-order {
+    font-weight: 800;
+
+    color:
+        var(--primary);
+
+    background:
+        #f4f7fb;
+
+    min-width: 60px;
+}
+
+.actions {
+    display: flex;
+
+    gap: 4px;
+
+    flex-wrap: wrap;
+
+    justify-content: center;
+}
+
+
+/* =========================================================
+   DOWNLOAD
+========================================================= */
+
+.download-box {
+    max-width: 800px;
+
+    margin: 20px auto;
+}
+
+.download-icon {
+    width: 64px;
+    height: 64px;
+
+    margin: 0 auto 12px;
+
+    border-radius: 16px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    font-size: 30px;
+
+    background:
+        var(--primary-light);
+
+    color:
+        var(--primary);
+}
+
+.download-content {
+    text-align: center;
+}
+
+.download-content h2 {
+    margin: 0;
+
+    color:
+        var(--primary);
+}
+
+.download-content p {
+    color:
+        var(--muted);
+
+    font-size: 13px;
+
+    margin: 7px 0 20px;
+}
+
+.download-fields {
+    display: flex;
+
+    justify-content: center;
+
+    align-items: end;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.modal {
+    display: none;
+
+    position: fixed;
+
+    inset: 0;
+
+    background:
+        rgba(8,25,44,.65);
+
+    z-index: 1000;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 15px;
+}
+
+.modal-box {
+    background: white;
+
+    width: 95%;
+
+    max-width: 500px;
+
+    padding: 22px;
+
+    border-radius: 13px;
+
+    box-shadow:
+        0 15px 45px rgba(0,0,0,.25);
+
+    animation:
+        modalIn .18s ease;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-box h3 {
+    margin:
+        0 0 18px;
+
+    color:
+        var(--primary);
+}
+
+.form-row {
+    margin-bottom: 13px;
+}
+
+.form-row label {
+    display: block;
+
+    margin-bottom: 6px;
+
+    font-size: 12px;
+
+    color:
+        #536273;
+
+    font-weight: 700;
+}
+
+.form-row input,
+.form-row select {
+    width: 100%;
+}
+
+
+/* =========================================================
+   EMPTY / LOADING
+========================================================= */
+
+.empty-state {
+    padding: 30px 15px;
+
+    text-align: center;
+
+    color:
+        var(--muted);
+}
+
+.empty-icon {
+    font-size: 28px;
+
+    margin-bottom: 7px;
+
+    opacity: .6;
+}
+
+.loading-state {
+    padding: 25px;
+
+    text-align: center;
+
+    color:
+        var(--muted);
+}
+
+.loading-spinner {
+    display: inline-block;
+
+    width: 20px;
+    height: 20px;
+
+    border:
+        3px solid #dbe4ee;
+
+    border-top-color:
+        var(--primary);
+
+    border-radius: 50%;
+
+    animation:
+        spin .7s linear infinite;
+
+    vertical-align: middle;
+
+    margin-right: 7px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media(max-width:900px) {
+
+    .category-buttons {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .entry-controls {
+        grid-template-columns:
+            1fr 1fr;
+    }
+
+}
+
+
+@media(max-width:700px) {
+
+    header {
+        padding: 14px 10px;
+    }
+
+    .header-inner {
+        align-items: flex-start;
+    }
+
+    .header-status {
+        display: none;
+    }
+
+    .header-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 21px;
+    }
+
+    header h1 {
+        font-size: 17px;
+    }
+
+    .header-subtitle {
+        font-size: 10px;
+    }
+
+    .container {
+        padding: 9px;
+    }
+
+    .tabs {
+        gap: 4px;
+
+        padding: 5px;
+
+        border-radius: 9px;
+    }
+
+    .tabs button {
+        flex: 1;
+
+        min-width:
+            calc(50% - 4px);
+
+        padding:
+            9px 7px;
+
+        font-size: 11px;
+    }
+
+    .card {
+        padding: 12px;
+
+        border-radius: 10px;
+    }
+
+    .entry-controls {
+        grid-template-columns: 1fr;
+
+        gap: 12px;
+    }
+
+    .category-buttons {
+        grid-template-columns:
+            1fr 1fr;
+
+        gap: 7px;
+    }
+
+    .category-buttons button {
+        padding: 10px;
+
+        font-size: 11px;
+    }
+
+    .category-number {
+        width: 21px;
+        height: 21px;
+
+        margin-right: 3px;
+    }
+
+    th,
+    td {
+        font-size: 11px;
+
+        padding: 7px 6px;
+    }
+
+    .reading-input {
+        width: 115px;
+    }
+
+    table {
+        min-width: 820px;
+    }
+
+    .page-heading h2 {
+        font-size: 17px;
+    }
+
+    .search-panel {
+        align-items: stretch;
+
+        flex-direction: column;
+    }
+
+    .search-field input {
+        width: 100%;
+    }
+
+    .download-fields {
+        flex-direction: column;
+
+        align-items: stretch;
+    }
+
+    .download-fields .search-field,
+    .download-fields button {
+        width: 100%;
+    }
+
+}
+
+
+/* =========================================================
+   SMALL BADGES
+========================================================= */
+
+.badge {
+    display: inline-block;
+
+    padding: 4px 8px;
+
+    border-radius: 20px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+}
+
+.badge-energy {
+    background:
+        #e8f0fa;
+
+    color:
+        var(--primary);
+}
+
+.badge-run {
+    background:
+        #fff1dc;
+
+    color:
+        #805b18;
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer {
+    text-align: center;
+
+    color:
+        #8996a5;
+
+    font-size: 10px;
+
+    padding:
+        12px 0 5px;
+}
+
+
+
+/* =========================================================
+   MOBILE ENTRY - EASY METER IDENTIFICATION
+   Keeps Meter Name + Unit visible while entering readings.
+========================================================= */
+
+/* Desktop: slightly more compact meter-name column */
+td.meter-name {
+    min-width: 190px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.entry-table td:nth-child(2) .badge {
+    font-size: 12px;
+    font-weight: 800;
+    opacity: 1;
+    color: #334e68;
+}
+
+@media(max-width:700px) {
+
+    /* Turn ONLY the Daily Data Entry table into easy-to-read cards */
+    .entry-table {
+        min-width: 0;
+        width: 100%;
+        display: block;
+        background: transparent;
+    }
+
+    .entry-table thead {
+        display: none;
+    }
+
+    .entry-table tbody,
+    .entry-table tbody tr {
+        display: block;
+        width: 100%;
+    }
+
+    .entry-table tbody tr {
+        margin-bottom: 12px;
+        padding: 10px;
+        background: #ffffff;
+        border: 1px solid #dce3eb;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(23,54,93,.08);
+    }
+
+    .entry-table tbody tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .entry-table tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-height: 38px;
+        padding: 7px 2px;
+        border: none;
+        border-bottom: 1px solid #eef2f6;
+        font-size: 12px;
+        text-align: right;
+    }
+
+    .entry-table tbody td:last-child {
+        border-bottom: none;
+    }
+
+    /* Meter name gets a full-width, prominent header */
+    .entry-table tbody td.meter-name {
+        display: block;
+        min-width: 0;
+        padding: 4px 2px 9px;
+        margin-bottom: 3px;
+        text-align: left;
+        font-size: 15px;
+        line-height: 1.3;
+        font-weight: 800;
+        color: #17365d;
+        border-bottom: 2px solid #dce7f3;
+    }
+
+    /* Unit remains clearly visible directly below the meter name */
+    .entry-table tbody td:nth-child(2) {
+        justify-content: flex-start;
+        padding-top: 4px;
+        padding-bottom: 8px;
+    }
+
+    .entry-table tbody td:nth-child(2)::before {
+        content: "Unit";
+        margin-right: 8px;
+        color: #536273;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .entry-table tbody td:nth-child(n+3)::before {
+        display: block;
+        flex: 0 0 auto;
+        margin-right: 10px;
+        color: #536273;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .entry-table tbody td:nth-child(3)::before { content: "Today Reading"; }
+    .entry-table tbody td:nth-child(4)::before { content: "Previous Actual"; }
+    .entry-table tbody td:nth-child(5)::before { content: "Previous MF"; }
+    .entry-table tbody td:nth-child(6)::before { content: "Consumption"; }
+    .entry-table tbody td:nth-child(7)::before { content: "Today MF"; }
+
+    .entry-table .badge {
+        padding: 5px 9px;
+        font-size: 13px;
+        line-height: 1;
+        font-weight: 800;
+        opacity: 1;
+    }
+
+    .entry-table .reading-input {
+        width: 150px;
+        max-width: 48%;
+        min-height: 40px;
+        padding: 8px 9px;
+        font-size: 16px;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .entry-table .previous-cell,
+    .entry-table .mf-cell,
+    .entry-table .consumption-cell {
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    /* Remove the outer horizontal-scroll appearance for Daily Entry */
+    .entry-table + * {
+        overflow: visible;
+    }
+
+    /* Keep the card itself within the mobile screen */
+    .entry-table td {
+        overflow-wrap: anywhere;
+    }
+}
+
+
+
+/* =========================================================
+   PREMIUM RED / WHITE / SLATE THEME
+========================================================= */
+:root {
+    --primary: #7f1d2d;
+    --primary-dark: #4a0f1a;
+    --primary-light: #f9e9ed;
+    --accent: #b42332;
+    --accent-light: #fcecef;
+    --danger: #b42332;
+    --danger-light: #fcecef;
+    --warning: #b7791f;
+    --warning-light: #fff7e6;
+    --info: #475569;
+    --info-light: #eef2f7;
+    --background: #f6f3f4;
+    --card: #ffffff;
+    --border: #e7dadd;
+    --text: #241b1e;
+    --muted: #6b5b60;
+    --shadow: 0 5px 18px rgba(74,15,26,.08);
+    --shadow-hover: 0 10px 28px rgba(74,15,26,.14);
+}
+
+body {
+    background: linear-gradient(180deg, #f5f1f2 0%, #fbfaf9 45%, #f3f5f7 100%);
+}
+
+header {
+    background: linear-gradient(135deg, #430c17 0%, #7f1d2d 52%, #b42332 100%);
+    box-shadow: 0 5px 18px rgba(67,12,23,.24);
+}
+
+.header-icon {
+    background: rgba(255,255,255,.13);
+    border-color: rgba(255,255,255,.25);
+}
+
+.header-status {
+    background: rgba(255,255,255,.12);
+    border-color: rgba(255,255,255,.24);
+}
+
+.tabs {
+    border-color: #eadde0;
+    box-shadow: 0 4px 16px rgba(74,15,26,.08);
+}
+
+.tabs button:hover {
+    background: #f9e9ed;
+    color: #7f1d2d;
+}
+
+.tabs button.active {
+    background: linear-gradient(135deg, #6f1727, #b42332);
+    box-shadow: 0 4px 10px rgba(127,29,45,.25);
+}
+
+.card {
+    border-color: #eadde0;
+    box-shadow: 0 4px 16px rgba(74,15,26,.07);
+}
+
+.card:hover {
+    box-shadow: 0 8px 24px rgba(74,15,26,.10);
+}
+
+.page-heading h2, .card-title {
+    color: #6f1727;
+}
+
+input:focus, select:focus {
+    border-color: #b42332;
+    box-shadow: 0 0 0 3px rgba(180,35,50,.10);
+}
+
+.category-buttons button {
+    border-color: #eadde0;
+    background: #fff;
+}
+
+.category-buttons button.active {
+    background: linear-gradient(135deg, #7f1d2d, #b42332);
+    border-color: #7f1d2d;
+    color: #fff;
+    box-shadow: 0 5px 14px rgba(127,29,45,.20);
+}
+
+.btn {
+    background: linear-gradient(135deg, #7f1d2d, #b42332);
+}
+
+.btn-green {
+    background: linear-gradient(135deg, #166534, #15803d);
+}
+
+.btn-red {
+    background: linear-gradient(135deg, #8f1729, #c52b3b);
+    box-shadow: 0 3px 8px rgba(180,35,50,.16);
+}
+
+.btn-gray {
+    background: linear-gradient(135deg, #475569, #64748b);
+}
+
+.btn-outline-red {
+    background: #fff;
+    color: #8f1729;
+    border: 1px solid #d9a7af;
+    padding: 9px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 12px;
+    transition: .18s ease;
+}
+
+.btn-outline-red:hover {
+    background: #fdf0f2;
+    border-color: #b42332;
+    transform: translateY(-1px);
+}
+
+.status.success {
+    background: #edf8f1;
+    border-color: #b7dec5;
+    color: #166534;
+}
+
+.status.error {
+    background: #fdf0f2;
+    border-color: #e8b6be;
+    color: #8f1729;
+}
+
+/* Name manager */
+.names-modal-box {
+    max-width: 620px;
+    border-top: 5px solid #8f1729;
+    padding: 0;
+    overflow: hidden;
+}
+
+.names-modal-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 22px 22px 16px;
+    background: linear-gradient(135deg, #fff 0%, #fff8f9 100%);
+    border-bottom: 1px solid #eee0e3;
+}
+
+.names-modal-header h3 {
+    margin: 2px 0 4px;
+    color: #6f1727;
+    font-size: 21px;
+}
+
+.names-modal-header p {
+    margin: 0;
+    color: #75666b;
+    font-size: 12px;
+}
+
+.names-modal-kicker {
+    color: #b42332;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.1px;
+}
+
+.modal-close-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid #eadde0;
+    border-radius: 50%;
+    background: #fff;
+    color: #6b5b60;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.modal-close-btn:hover {
+    background: #fcecef;
+    color: #8f1729;
+}
+
+.name-add-strip {
+    display: flex;
+    gap: 8px;
+    padding: 15px 22px;
+    background: #f8f5f6;
+    border-bottom: 1px solid #eee0e3;
+}
+
+.name-add-strip input {
+    flex: 1;
+    min-width: 0;
+}
+
+.names-manager-list {
+    padding: 8px 22px 14px;
+    max-height: 330px;
+    overflow-y: auto;
+}
+
+.name-manager-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 4px;
+    border-bottom: 1px solid #f0e5e7;
+}
+
+.name-manager-row:last-child {
+    border-bottom: none;
+}
+
+.name-manager-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.name-manager-avatar {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f7dfe4, #fcecef);
+    color: #8f1729;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.name-manager-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+    color: #302328;
+}
+
+.name-delete-btn {
+    border: 1px solid #e8b6be;
+    background: #fff5f6;
+    color: #9f1d2d;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.name-delete-btn:hover {
+    background: #fcecef;
+    border-color: #c52b3b;
+}
+
+.names-empty {
+    text-align: center;
+    padding: 26px 10px;
+    color: #75666b;
+    font-size: 12px;
+}
+
+.names-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 22px;
+    background: #fff;
+    border-top: 1px solid #eee0e3;
+    color: #75666b;
+    font-size: 10px;
+}
+
+@media(max-width:700px) {
+    .name-add-strip { flex-direction: column; }
+    .name-add-strip .btn-red { width: 100%; }
+    .names-modal-header { padding: 18px 16px 14px; }
+    .names-manager-list { padding-left: 16px; padding-right: 16px; }
+    .names-modal-footer { padding: 12px 16px; align-items: flex-start; }
+    .names-modal-footer span { max-width: 70%; }
+}
+
+</style>
+</head>
+
+
+<body>
+
+
+<!-- =======================================================
+     HEADER
+======================================================== -->
+
+<header>
+
+<div class="header-inner">
+
+    <div class="header-title">
+
+        <div class="header-icon">
+            ⚡
+        </div>
+
+        <div>
+
+            <h1>
+                Energy Meter & Run Hour Tracker
+            </h1>
+
+            <div class="header-subtitle">
+                Electrical Energy Monitoring & Daily Reading Management
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="header-status">
+        ● System Ready
+    </div>
+
+</div>
+
+</header>
+
+
+<div class="container">
+
+
+<!-- =======================================================
+     NAVIGATION
+======================================================== -->
+
+<div class="tabs">
+
+    <button
+        class="tab-btn active"
+        onclick="showTab('entryTab',this)">
+        ⚡ Daily Data Entry
+    </button>
+
+    <button
+        class="tab-btn"
+        onclick="showTab('savedTab',this)">
+        📋 Saved Readings
+    </button>
+
+    <button
+        class="tab-btn"
+        onclick="showTab('masterTab',this)">
+        ⚙ Meter Master
+    </button>
+
+    <button
+        class="tab-btn"
+        onclick="showTab('downloadTab',this)">
+        ⬇ Download
+    </button>
+
+</div>
+
+
+<!-- =======================================================
+     DAILY DATA ENTRY
+======================================================== -->
+
+<div id="entryTab" class="tab-content active">
+
+
+<div class="page-heading">
+
+    <div>
+
+        <h2>
+            Daily Data Entry
+        </h2>
+
+        <p>
+            Enter today's meter readings and monitor consumption.
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- CONTROLS -->
+
+<div class="card">
+
+    <div class="entry-controls">
+
+
+        <div class="control-group">
+
+            <label>
+                📅 Reading Date
+            </label>
+
+            <input
+                type="date"
+                id="entryDate"
+                onchange="loadEntryData()">
+
+        </div>
+
+
+        <div class="control-group">
+
+            <label>
+                👤 Entered By
+            </label>
+
+            <div class="control-row">
+
+                <select id="enteredBy">
+
+                    <option value="">
+                        -- Select Name --
+                    </option>
+
+                </select>
+
+                <button
+                    class="btn-red btn-small"
+                    onclick="addNewName()">
+
+                    + Add Name
+
+                </button>
+
+                <button
+                    class="btn-outline-red btn-small"
+                    onclick="openNamesManager()">
+
+                    Manage Names
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+<!-- CATEGORY -->
+
+<div class="category-section">
+
+<span class="section-label">
+    Select Meter Category
+</span>
+
+<div class="category-buttons">
+
+
+<button
+    onclick="selectCategory(
+        'Power Control Center (PCC) panel',
+        this
+    )"
+    class="active">
+
+    <span class="category-number">
+        1
+    </span>
+
+    PCC Panel
+
+</button>
+
+
+<button
+    onclick="selectCategory(
+        'DG KWH',
+        this
+    )">
+
+    <span class="category-number">
+        2
+    </span>
+
+    DG KWH
+
+</button>
+
+
+<button
+    onclick="selectCategory(
+        'Water Base - MCC panels',
+        this
+    )">
+
+    <span class="category-number">
+        3
+    </span>
+
+    Water Base - MCC
+
+</button>
+
+
+<button
+    onclick="selectCategory(
+        'Solvent Base - MCC panels',
+        this
+    )">
+
+    <span class="category-number">
+        4
+    </span>
+
+    Solvent Base - MCC
+
+</button>
+
+
+</div>
+
+</div>
+
+
+<!-- ENTRY TABLE -->
+
+<div class="card">
+
+    <div class="table-wrap">
+
+    <table class="entry-table">
+
+    <thead>
+
+    <tr>
+
+        <th>
+            Meter Name
+        </th>
+
+        <th>
+            Unit
+        </th>
+
+        <th>
+            Today Reading
+        </th>
+
+        <th>
+            Previous Actual
+        </th>
+
+        <th>
+            Previous MF
+        </th>
+
+        <th>
+            Consumption
+        </th>
+
+        <th>
+            Today MF
+        </th>
+
+    </tr>
+
+    </thead>
+
+    <tbody id="entryTableBody">
+
+    <tr>
+
+        <td colspan="7">
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    📅
+                </div>
+
+                Select a date to start entering readings.
+
+            </div>
+
+        </td>
+
+    </tr>
+
+    </tbody>
+
+    </table>
+
+    </div>
+
+
+    <div class="save-area">
+
+        <span class="save-note">
+            Enter only the meters that have a reading for this date.
+        </span>
+
+        <button
+            class="btn-green"
+            onclick="saveReadings()">
+
+            ✓ Save Readings
+
+        </button>
+
+    </div>
+
+    <div id="entryStatus"></div>
+
+</div>
+
+</div>
+
+
+<!-- =======================================================
+     SAVED READINGS
+======================================================== -->
+
+<div id="savedTab" class="tab-content">
+
+
+<div class="page-heading">
+
+    <div>
+
+        <h2>
+            Saved Readings
+        </h2>
+
+        <p>
+            Search, review, edit or delete previously saved readings.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="card">
+
+<div class="search-panel">
+
+
+    <div class="search-field">
+
+        <label>
+            FROM DATE
+        </label>
+
+        <input
+            type="date"
+            id="savedFrom">
+
+    </div>
+
+
+    <div class="search-field">
+
+        <label>
+            TO DATE
+        </label>
+
+        <input
+            type="date"
+            id="savedTo">
+
+    </div>
+
+
+    <button
+        class="btn"
+        onclick="loadSavedReadings()">
+
+        🔍 Search Readings
+
+    </button>
+
+
+</div>
+
+</div>
+
+
+<div class="card">
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+    <th>
+        Date
+    </th>
+
+    <th>
+        Meter
+    </th>
+
+    <th>
+        Category
+    </th>
+
+    <th>
+        Reading
+    </th>
+
+    <th>
+        MF
+    </th>
+
+    <th>
+        Entered By
+    </th>
+
+    <th>
+        Action
+    </th>
+
+</tr>
+
+</thead>
+
+<tbody id="savedTableBody">
+
+<tr>
+
+    <td colspan="7">
+
+        <div class="empty-state">
+
+            <div class="empty-icon">
+                📋
+            </div>
+
+            Select a date range and search.
+
+        </div>
+
+    </td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- =======================================================
+     METER MASTER
+======================================================== -->
+
+<div id="masterTab" class="tab-content">
+
+
+<div class="page-heading">
+
+    <div>
+
+        <h2>
+            Meter Master
+        </h2>
+
+        <p>
+            Manage meters, categories, units, MF and display order.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="card">
+
+    <div class="master-toolbar">
+
+        <div>
+
+            <strong>
+                🔐 Administrator Area
+            </strong>
+
+            <div
+                style="
+                    font-size:11px;
+                    color:#6c757d;
+                    margin-top:4px;
+                ">
+
+                Meter master changes are password protected.
+
+            </div>
+
+        </div>
+
+
+        <div class="master-actions">
+
+            <button
+                class="btn"
+                onclick="openMaster()">
+
+                🔓 Open Meter Master
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div id="masterArea"></div>
+
+</div>
+
+
+<!-- =======================================================
+     DOWNLOAD
+======================================================== -->
+
+<div id="downloadTab" class="tab-content">
+
+
+<div class="download-box">
+
+<div class="card">
+
+<div class="download-content">
+
+    <div class="download-icon">
+        ⬇
+    </div>
+
+    <h2>
+        Download Readings
+    </h2>
+
+    <p>
+        Select a date range and download the saved meter readings
+        in the same Machine Feeder Details Excel format as the sample file.
+        Actual readings stay only on their entered dates. Missed dates remain blank; no reading is copied into future dates.
+    </p>
+
+
+    <div class="download-fields">
+
+
+        <div class="search-field">
+
+            <label>
+                FROM DATE
+            </label>
+
+            <input
+                type="date"
+                id="downloadFrom">
+
+        </div>
+
+
+        <div class="search-field">
+
+            <label>
+                TO DATE
+            </label>
+
+            <input
+                type="date"
+                id="downloadTo">
+
+        </div>
+
+
+        <button
+            class="btn-green"
+            onclick="downloadExcel()">
+
+            ⬇ Download Excel
+
+        </button>
+
+
+    </div>
+
+
+    <div id="downloadStatus"></div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="footer">
+
+    Energy Meter & Run Hour Tracker
+
+</div>
+
+
+</div>
+
+
+<!-- =======================================================
+     ENTERED BY / CREATED BY NAME MANAGER
+======================================================== -->
+
+<div
+    id="namesModal"
+    class="modal">
+
+    <div class="modal-box names-modal-box">
+
+        <div class="names-modal-header">
+            <div>
+                <div class="names-modal-kicker">CREATED BY / ENTERED BY</div>
+                <h3>Manage Names</h3>
+                <p>Add a new name or remove an existing name from the list.</p>
+            </div>
+
+            <button
+                class="modal-close-btn"
+                onclick="closeModal('namesModal')"
+                aria-label="Close">
+                ×
+            </button>
+        </div>
+
+        <div class="name-add-strip">
+            <input
+                type="text"
+                id="newNameInput"
+                placeholder="Enter new name"
+                maxlength="100"
+                onkeydown="if(event.key==='Enter') addNameFromManager()">
+
+            <button
+                class="btn-red"
+                onclick="addNameFromManager()">
+                + Add Name
+            </button>
+        </div>
+
+        <div id="namesManagerList" class="names-manager-list"></div>
+
+        <div class="names-modal-footer">
+            <span>⚠ Removing a name does not delete old saved readings.</span>
+            <button
+                class="btn-gray"
+                onclick="closeModal('namesModal')">
+                Close
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =======================================================
+     PASSWORD MODAL
+======================================================== -->
+
+<div
+    id="passwordModal"
+    class="modal">
+
+<div class="modal-box">
+
+    <h3>
+        🔐 Meter Master Password
+    </h3>
+
+    <div class="form-row">
+
+        <label>
+            Administrator Password
+        </label>
+
+        <input
+            type="password"
+            id="masterPassword"
+            placeholder="Enter password">
+
+    </div>
+
+
+    <div
+        style="
+            display:flex;
+            gap:7px;
+            justify-content:flex-end;
+        ">
+
+        <button
+            class="btn"
+            onclick="checkMasterPassword()">
+
+            Open
+
+        </button>
+
+        <button
+            class="btn-gray"
+            onclick="closeModal('passwordModal')">
+
+            Close
+
+        </button>
+
+    </div>
+
+
+    <div id="passwordError"></div>
+
+</div>
+
+</div>
+
+
+<!-- =======================================================
+     EDIT METER MODAL
+======================================================== -->
+
+<div
+    id="meterModal"
+    class="modal">
+
+<div class="modal-box">
+
+    <h3 id="meterModalTitle">
+        Edit Meter
+    </h3>
+
+    <input
+        type="hidden"
+        id="editMeterId">
+
+
+    <div class="form-row">
+
+        <label>
+            Meter Name
+        </label>
+
+        <input
+            id="editMeterName">
+
+    </div>
+
+
+    <div class="form-row">
+
+        <label>
+            Category
+        </label>
+
+        <select id="editMeterCategory">
+
+            <option>
+                Power Control Center (PCC) panel
+            </option>
+
+            <option>
+                DG KWH
+            </option>
+
+            <option>
+                Water Base - MCC panels
+            </option>
+
+            <option>
+                Solvent Base - MCC panels
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <div class="form-row">
+
+        <label>
+            Unit
+        </label>
+
+        <select id="editMeterUnit">
+
+            <option value="kWh">
+                kWh
+            </option>
+
+            <option value="MWh">
+                MWh
+            </option>
+
+            <option value="GWh">
+                GWh
+            </option>
+
+            <option value="HH:MM:SS">
+                H...H:MM:SS
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <div class="form-row">
+
+        <label>
+            Multiplication Factor (MF)
+        </label>
+
+        <input
+            type="number"
+            id="editMeterMF"
+            step="any">
+
+    </div>
+
+
+    <div
+        style="
+            display:flex;
+            gap:7px;
+            justify-content:flex-end;
+        ">
+
+        <button
+            class="btn-green"
+            onclick="saveMeter()">
+
+            Save Changes
+
+        </button>
+
+        <button
+            class="btn-gray"
+            onclick="closeModal('meterModal')">
+
+            Close
+
+        </button>
+
+    </div>
+
+</div>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+<script>
+
+/* =========================================================
+   SUPABASE CONFIGURATION
+========================================================= */
+
+const SUPABASE_URL =
+    "https://aumewdcvqtkwybzhjpfr.supabase.co";
+
+const SUPABASE_KEY =
+    "sb_publishable_ZqQUGcAELebJ3VTQGWIJVw_lM8sJ2WB";
+
+const ADMIN_PASSWORD =
+    "admin123";
+
+
+/* =========================================================
+   GLOBAL VARIABLES
+========================================================= */
+
+let meters = [];
+
+let names = [];
+
+let currentCategory =
+    "Power Control Center (PCC) panel";
+
+let masterUnlocked = false;
+
+let previousReadings = {};
+
+
+/* =========================================================
+   SUPABASE REQUEST
+========================================================= */
+
+async function supabaseRequest(
+    table,
+    method = "GET",
+    body = null,
+    query = ""
+) {
+
+    const options = {
+
+        method: method,
+
+        headers: {
+
+            "apikey":
+                SUPABASE_KEY,
+
+            "Authorization":
+                "Bearer " + SUPABASE_KEY,
+
+            "Content-Type":
+                "application/json",
+
+            "Prefer":
+                "return=representation"
+
+        }
+
+    };
+
+
+    if (body !== null) {
+
+        options.body =
+            JSON.stringify(body);
+
+    }
+
+
+    const response =
+        await fetch(
+            SUPABASE_URL +
+            "/rest/v1/" +
+            table +
+            query,
+            options
+        );
+
+
+    if (!response.ok) {
+
+        const text =
+            await response.text();
+
+        throw new Error(
+            response.status +
+            " : " +
+            text
+        );
+
+    }
+
+
+    const text =
+        await response.text();
+
+    return text
+        ? JSON.parse(text)
+        : [];
+
+}
+
+
+/* =========================================================
+   INITIAL LOAD
+========================================================= */
+
+async function init() {
+
+    try {
+
+
+        meters =
+            await supabaseRequest(
+                "meters",
+                "GET",
+                null,
+                "?select=id,name,category,unit,mf,active,display_order" +
+                "&active=eq.true" +
+                "&order=display_order.asc,name.asc"
+            );
+
+
+        meters =
+            sortMeters(meters);
+
+
+        names =
+            await supabaseRequest(
+                "entered_by_names",
+                "GET",
+                null,
+                "?select=id,name&order=name.asc"
+            );
+
+
+        renderNames();
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to load data.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   SORT METERS
+========================================================= */
+
+function sortMeters(list) {
+
+    return [...list].sort(
+        (a,b) => {
+
+            const ao =
+                a.display_order == null
+                ? 999999
+                : Number(a.display_order);
+
+            const bo =
+                b.display_order == null
+                ? 999999
+                : Number(b.display_order);
+
+
+            if (ao !== bo)
+                return ao - bo;
+
+
+            return a.name.localeCompare(
+                b.name
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   TAB
+========================================================= */
+
+function showTab(
+    tabId,
+    button
+) {
+
+    document
+        .querySelectorAll(".tab-content")
+        .forEach(
+            x =>
+                x.classList.remove("active")
+        );
+
+
+    document
+        .querySelectorAll(".tab-btn")
+        .forEach(
+            x =>
+                x.classList.remove("active")
+        );
+
+
+    document
+        .getElementById(tabId)
+        .classList.add("active");
+
+
+    if (button)
+        button.classList.add("active");
+
+}
+
+
+/* =========================================================
+   NAMES
+========================================================= */
+
+function renderNames() {
+
+    const select =
+        document.getElementById(
+            "enteredBy"
+        );
+
+
+    select.innerHTML =
+        '<option value="">-- Select Name --</option>';
+
+
+    names.forEach(
+        item => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+
+            option.value =
+                item.name;
+
+            option.textContent =
+                item.name;
+
+
+            select.appendChild(
+                option
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   ADD NAME
+========================================================= */
+
+async function addNewName() {
+
+    const name =
+        prompt(
+            "Enter new name:"
+        );
+
+
+    if (
+        !name ||
+        !name.trim()
+    )
+        return;
+
+
+    const cleanName =
+        name.trim();
+
+
+    const duplicate =
+        names.find(
+            x =>
+                x.name.toLowerCase() ===
+                cleanName.toLowerCase()
+        );
+
+
+    if (duplicate) {
+
+        document
+            .getElementById(
+                "enteredBy"
+            )
+            .value =
+            duplicate.name;
+
+        return;
+
+    }
+
+
+    try {
+
+        const result =
+            await supabaseRequest(
+                "entered_by_names",
+                "POST",
+                {
+                    name:
+                        cleanName
+                }
+            );
+
+
+        names.push(
+            result[0]
+        );
+
+
+        renderNames();
+
+
+        document
+            .getElementById(
+                "enteredBy"
+            )
+            .value =
+            cleanName;
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to add name.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   MANAGE ENTERED BY / CREATED BY NAMES
+========================================================= */
+
+function openNamesManager() {
+
+    renderNamesManager();
+
+    const modal = document.getElementById("namesModal");
+
+    modal.style.display = "flex";
+
+    setTimeout(() => {
+        const input = document.getElementById("newNameInput");
+        if (input) input.focus();
+    }, 50);
+}
+
+
+function getNameInitials(name) {
+
+    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+
+    if (!parts.length) return "?";
+
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+
+function renderNamesManager() {
+
+    const list = document.getElementById("namesManagerList");
+    if (!list) return;
+
+    const sorted = [...names].sort((a, b) =>
+        String(a.name).localeCompare(String(b.name))
+    );
+
+    if (!sorted.length) {
+        list.innerHTML = '<div class="names-empty">No names added yet.</div>';
+        return;
+    }
+
+    list.innerHTML = sorted.map(item => `
+        <div class="name-manager-row">
+            <div class="name-manager-label">
+                <div class="name-manager-avatar">${escapeHtml(getNameInitials(item.name))}</div>
+                <div class="name-manager-text" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+            </div>
+            <button
+                class="name-delete-btn"
+                onclick="deleteName('${String(item.id).replace(/'/g, "\\'")}')">
+                🗑 Delete
+            </button>
+        </div>
+    `).join("");
+}
+
+
+async function addNameFromManager() {
+
+    const input = document.getElementById("newNameInput");
+    const value = input ? input.value.trim() : "";
+
+    if (!value) {
+        alert("Please enter a name.");
+        if (input) input.focus();
+        return;
+    }
+
+    const duplicate = names.find(
+        x => String(x.name).toLowerCase() === value.toLowerCase()
+    );
+
+    if (duplicate) {
+        document.getElementById("enteredBy").value = duplicate.name;
+        alert("This name already exists.");
+        if (input) input.select();
+        return;
+    }
+
+    try {
+
+        const result = await supabaseRequest(
+            "entered_by_names",
+            "POST",
+            { name: value }
+        );
+
+        names.push(result[0]);
+        renderNames();
+        renderNamesManager();
+
+        document.getElementById("enteredBy").value = value;
+
+        if (input) {
+            input.value = "";
+            input.focus();
+        }
+
+    } catch (error) {
+        alert("Unable to add name.\n\n" + error.message);
+    }
+}
+
+
+async function deleteName(id) {
+
+    const item = names.find(x => String(x.id) === String(id));
+    if (!item) return;
+
+    if (!confirm(
+        "Delete this name from the list?\n\n" +
+        item.name +
+        "\n\nOld saved readings will remain unchanged."
+    )) return;
+
+    try {
+
+        await supabaseRequest(
+            "entered_by_names",
+            "DELETE",
+            null,
+            "?id=eq." + encodeURIComponent(id)
+        );
+
+        names = names.filter(x => String(x.id) !== String(id));
+
+        renderNames();
+        renderNamesManager();
+
+        const enteredBy = document.getElementById("enteredBy");
+        if (enteredBy && enteredBy.value === item.name) {
+            enteredBy.value = "";
+        }
+
+    } catch (error) {
+        alert("Unable to delete name.\n\n" + error.message);
+    }
+}
+
+
+/* =========================================================
+   CATEGORY
+========================================================= */
+
+function selectCategory(
+    category,
+    button
+) {
+
+    currentCategory =
+        category;
+
+
+    document
+        .querySelectorAll(
+            ".category-buttons button"
+        )
+        .forEach(
+            x =>
+                x.classList.remove(
+                    "active"
+                )
+        );
+
+
+    button.classList.add(
+        "active"
+    );
+
+
+    renderEntryTable();
+
+}
+
+
+/* =========================================================
+   RUN HOUR
+========================================================= */
+
+function isRunHourMeter(
+    meter
+) {
+
+    return (
+
+        meter.unit ===
+        "HH:MM:SS"
+
+        ||
+
+        (
+            !meter.mf &&
+            ![
+                "kWh",
+                "MWh",
+                "GWh"
+            ].includes(
+                meter.unit
+            )
+        )
+
+    );
+
+}
+
+
+/* =========================================================
+   TIME FUNCTIONS
+========================================================= */
+
+function formatRunHour(
+    seconds
+) {
+
+    if (
+        seconds === null ||
+        seconds === undefined ||
+        !Number.isFinite(Number(seconds))
+    )
+        return "";
+
+
+    seconds =
+        Math.round(Number(seconds));
+
+
+    if (seconds < 0)
+        return "00:00:00";
+
+
+    /*
+       Run-hour format:
+       - Hours can have any number of digits.
+       - Minutes are 00-59.
+       - Seconds are 00-99 as required by the run-hour meters.
+
+       For the existing consumption calculation, the stored value is
+       converted using 60 seconds per minute. The displayed result is
+       normalized back to H:MM:SS.
+    */
+    const h =
+        Math.floor(
+            seconds / 3600
+        );
+
+
+    const m =
+        Math.floor(
+            (seconds % 3600) / 60
+        );
+
+
+    const s =
+        seconds % 60;
+
+
+    return [
+        String(h).padStart(2,"0"),
+        String(m).padStart(2,"0"),
+        String(s).padStart(2,"0")
+    ].join(":");
+
+}
+
+
+function timeToSeconds(
+    value
+) {
+
+    if (value === null || value === undefined)
+        return null;
+
+    const clean = String(value).trim();
+
+    if (!clean)
+        return null;
+
+    /*
+       Run-hour input accepts BOTH formats:
+       1. H...H:MM:SS  (unlimited hours, MM/SS 00-59)
+       2. Numeric hours (for example 678, 125.5 or 1234)
+
+       Internally everything is converted to seconds so mixed formats
+       can be compared and consumption can be calculated correctly.
+    */
+    if (clean.includes(":")) {
+
+        const match =
+            /^(\d+):(\d{2}):(\d{2})$/.exec(clean);
+
+        if (!match)
+            return null;
+
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        const seconds = Number(match[3]);
+
+        if (
+            !Number.isSafeInteger(hours) ||
+            hours < 0 ||
+            minutes < 0 ||
+            minutes > 59 ||
+            seconds < 0 ||
+            seconds > 59
+        )
+            return null;
+
+        const total =
+            hours * 3600 +
+            minutes * 60 +
+            seconds;
+
+        return Number.isSafeInteger(total)
+            ? total
+            : null;
+    }
+
+    /* Numeric value = total run hours. */
+    if (!/^\d+(?:\.\d+)?$/.test(clean))
+        return null;
+
+    const hours = Number(clean);
+
+    if (!Number.isFinite(hours) || hours < 0)
+        return null;
+
+    const total =
+        Math.round(hours * 3600);
+
+    return Number.isSafeInteger(total)
+        ? total
+        : null;
+}
+
+
+/* =========================================================
+   LOAD PREVIOUS READINGS
+   ONE REQUEST ONLY
+========================================================= */
+
+async function loadPreviousReadings(
+    date
+) {
+
+    previousReadings = {};
+
+
+    if (!date)
+        return;
+
+
+    const result =
+        await supabaseRequest(
+            "rpc/get_previous_meter_readings",
+            "POST",
+            {
+                target_date:
+                    date
+            }
+        );
+
+
+    result.forEach(
+        row => {
+
+            previousReadings[
+                row.meter_id
+            ] = row;
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   ENTRY DATA
+========================================================= */
+
+async function loadEntryData() {
+
+    const date =
+        document
+            .getElementById(
+                "entryDate"
+            )
+            .value;
+
+
+    const tbody =
+        document
+            .getElementById(
+                "entryTableBody"
+            );
+
+
+    if (!date) {
+
+        previousReadings = {};
+
+
+        tbody.innerHTML = `
+
+        <tr>
+
+            <td colspan="7">
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        📅
+                    </div>
+
+                    Select a date to start entering readings.
+
+                </div>
+
+            </td>
+
+        </tr>
+
+        `;
+
+        return;
+
+    }
+
+
+    tbody.innerHTML = `
+
+    <tr>
+
+        <td colspan="7">
+
+            <div class="loading-state">
+
+                <span class="loading-spinner"></span>
+
+                Loading meter data...
+
+            </div>
+
+        </td>
+
+    </tr>
+
+    `;
+
+
+    try {
+
+        await loadPreviousReadings(
+            date
+        );
+
+        renderEntryTable();
+
+
+    } catch(error) {
+
+        tbody.innerHTML = `
+
+        <tr>
+
+            <td colspan="7">
+
+                <div class="status error">
+
+                    Unable to load previous readings:
+                    ${escapeHtml(error.message)}
+
+                </div>
+
+            </td>
+
+        </tr>
+
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER ENTRY TABLE
+========================================================= */
+
+function renderEntryTable() {
+
+    const tbody =
+        document
+            .getElementById(
+                "entryTableBody"
+            );
+
+
+    const date =
+        document
+            .getElementById(
+                "entryDate"
+            )
+            .value;
+
+
+    if (!date) {
+
+        tbody.innerHTML = `
+
+        <tr>
+
+            <td colspan="7">
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        📅
+                    </div>
+
+                    Select a date to start entering readings.
+
+                </div>
+
+            </td>
+
+        </tr>
+
+        `;
+
+        return;
+
+    }
+
+
+    const categoryMeters =
+        meters
+            .filter(
+                m =>
+                    m.category ===
+                    currentCategory
+            )
+            .sort(
+                (a,b) =>
+                    Number(
+                        a.display_order ||
+                        999999
+                    )
+                    -
+                    Number(
+                        b.display_order ||
+                        999999
+                    )
+            );
+
+
+    if (!categoryMeters.length) {
+
+        tbody.innerHTML = `
+
+        <tr>
+
+            <td colspan="7">
+
+                <div class="empty-state">
+
+                    No active meters in this category.
+
+                </div>
+
+            </td>
+
+        </tr>
+
+        `;
+
+        return;
+
+    }
+
+
+    let html = "";
+
+
+    categoryMeters.forEach(
+        meter => {
+
+
+            const previous =
+                previousReadings[
+                    meter.id
+                ] || null;
+
+
+            const unit =
+                isRunHourMeter(meter)
+                ? "H...H:MM:SS"
+                : meter.unit;
+
+
+            const inputType =
+                isRunHourMeter(meter)
+                ? "text"
+                : "number";
+
+
+            const placeholder =
+                isRunHourMeter(meter)
+                ? "H...H:MM:SS or hours"
+                : "Today reading";
+
+
+            html += `
+
+            <tr
+
+                data-meter-id="${escapeHtml(meter.id)}"
+
+                data-previous-id="${
+                    previous
+                    ? escapeHtml(previous.id || "")
+                    : ""
+                }"
+
+                data-previous-reading="${
+                    previous
+                    ? escapeHtml(previous.reading)
+                    : ""
+                }"
+
+                data-previous-mf="${
+                    previous &&
+                    previous.mf != null
+                    ? previous.mf
+                    : ""
+                }"
+
+            >
+
+                <td class="meter-name">
+
+                    ${escapeHtml(
+                        meter.name
+                    )}
+
+                </td>
+
+
+                <td>
+
+                    <span class="badge ${
+                        isRunHourMeter(meter)
+                        ? "badge-run"
+                        : "badge-energy"
+                    }">
+
+                        ${escapeHtml(unit)}
+
+                    </span>
+
+                </td>
+
+
+                <td>
+
+                    <input
+
+                        class="reading-input today-reading"
+
+                        data-meter-id="${escapeHtml(meter.id)}"
+
+                        type="${inputType}"
+
+                        placeholder="${placeholder}"
+
+                        ${
+                            isRunHourMeter(meter)
+                            ? 'maxlength="30" inputmode="numeric" autocomplete="off"'
+                            : 'step="any"'
+                        }
+
+                    >
+
+                </td>
+
+
+                <td class="previous-cell">
+
+                    ${
+                        previous
+                        ? escapeHtml(
+                            previous.reading
+                        )
+                        : "-"
+                    }
+
+                </td>
+
+
+                <td class="mf-cell">
+
+                    ${
+                        previous &&
+                        previous.mf != null
+                        ? Number(
+                            previous.mf
+                          ).toLocaleString()
+                        : "-"
+                    }
+
+                </td>
+
+
+                <td class="consumption-cell">
+
+                    -
+
+                </td>
+
+
+                <td class="mf-cell">
+
+                    ${
+                        isRunHourMeter(meter)
+                        ? "NA"
+                        : Number(
+                            meter.mf || 0
+                          ).toLocaleString()
+                    }
+
+                </td>
+
+            </tr>
+
+            `;
+
+        }
+    );
+
+
+    tbody.innerHTML =
+        html;
+
+
+    document
+        .querySelectorAll(
+            ".today-reading"
+        )
+        .forEach(
+            input => {
+
+                input.addEventListener(
+                    "input",
+                    calculateRowConsumption
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   CONSUMPTION
+========================================================= */
+
+function calculateRowConsumption(
+    event
+) {
+
+    const input =
+        event.target;
+
+
+    const row =
+        input.closest("tr");
+
+
+    const meter =
+        meters.find(
+            m =>
+                m.id ===
+                row.dataset.meterId
+        );
+
+
+    if (!meter)
+        return;
+
+
+    const cell =
+        row.querySelector(
+            ".consumption-cell"
+        );
+
+
+    const previousReading =
+        row.dataset.previousReading;
+
+
+    const previousMF =
+        row.dataset.previousMf;
+
+
+    if (!previousReading) {
+
+        cell.textContent = "-";
+
+        return;
+
+    }
+
+
+    /* RUN HOUR */
+
+    if (
+        isRunHourMeter(meter)
+    ) {
+
+        const current =
+            timeToSeconds(
+                input.value
+            );
+
+
+        const previous =
+            timeToSeconds(
+                previousReading
+            );
+
+
+        if (
+            current === null ||
+            previous === null
+        ) {
+
+            cell.textContent = "-";
+
+            return;
+
+        }
+
+
+        cell.textContent =
+            formatRunHour(
+                current - previous
+            );
+
+
+        return;
+
+    }
+
+
+    /* ENERGY */
+
+    const current =
+        Number(
+            input.value
+        );
+
+
+    const previous =
+        Number(
+            previousReading
+        );
+
+
+    const currentMF =
+        Number(
+            meter.mf || 0
+        );
+
+
+    const oldMF =
+        Number(
+            previousMF || 0
+        );
+
+
+    if (
+        isNaN(current) ||
+        isNaN(previous)
+    ) {
+
+        cell.textContent = "-";
+
+        return;
+
+    }
+
+
+    const consumption =
+        (
+            current *
+            currentMF
+        )
+        -
+        (
+            previous *
+            oldMF
+        );
+
+
+    cell.textContent =
+        formatNumber(
+            consumption
+        );
+
+}
+
+
+/* =========================================================
+   NUMBER FORMAT
+========================================================= */
+
+function formatNumber(
+    value
+) {
+
+    if (!isFinite(value))
+        return "-";
+
+
+    return value.toLocaleString(
+        "en-IN",
+        {
+            maximumFractionDigits:
+                3
+        }
+    );
+
+}
+
+
+/* =========================================================
+   SAVE READINGS
+========================================================= */
+
+async function saveReadings() {
+
+    const date =
+        document
+            .getElementById(
+                "entryDate"
+            )
+            .value;
+
+
+    const enteredBy =
+        document
+            .getElementById(
+                "enteredBy"
+            )
+            .value;
+
+
+    const status =
+        document
+            .getElementById(
+                "entryStatus"
+            );
+
+
+    if (!date) {
+
+        showStatus(
+            status,
+            "Please select date.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if (!enteredBy) {
+
+        showStatus(
+            status,
+            "Please select Entered By.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const rows =
+        document.querySelectorAll(
+            "#entryTableBody tr[data-meter-id]"
+        );
+
+
+    let records = [];
+
+
+    for (
+        const row of rows
+    ) {
+
+
+        const meter =
+            meters.find(
+                m =>
+                    m.id ===
+                    row.dataset.meterId
+            );
+
+
+        const input =
+            row.querySelector(
+                ".today-reading"
+            );
+
+
+        const value =
+            input.value.trim();
+
+
+        if (!value)
+            continue;
+
+
+        if (
+            isRunHourMeter(meter)
+        ) {
+
+            if (
+                timeToSeconds(value)
+                === null
+            ) {
+
+                showStatus(
+                    status,
+                    meter.name +
+                    ": Please enter H...H:MM:SS or numeric hours (e.g. 678).",
+                    "error"
+                );
+
+                return;
+
+            }
+
+        }
+
+
+        records.push({
+
+            meter_id:
+                meter.id,
+
+            reading_date:
+                date,
+
+            reading:
+                value,
+
+            mf:
+                isRunHourMeter(meter)
+                ? null
+                : Number(
+                    meter.mf || 0
+                  ),
+
+            entered_by:
+                enteredBy
+
+        });
+
+    }
+
+
+    if (!records.length) {
+
+        showStatus(
+            status,
+            "No readings entered.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    showStatus(
+        status,
+        "Saving readings...",
+        "info"
+    );
+
+
+    try {
+
+
+        for (
+            const record of records
+        ) {
+
+
+            const existing =
+                await supabaseRequest(
+                    "readings",
+                    "GET",
+                    null,
+
+                    "?select=id" +
+
+                    "&meter_id=eq." +
+                    encodeURIComponent(
+                        record.meter_id
+                    ) +
+
+                    "&reading_date=eq." +
+                    encodeURIComponent(
+                        record.reading_date
+                    ) +
+
+                    "&limit=1"
+                );
+
+
+            if (
+                existing.length
+            ) {
+
+
+                await supabaseRequest(
+                    "readings",
+                    "PATCH",
+
+                    {
+                        reading:
+                            record.reading,
+
+                        mf:
+                            record.mf,
+
+                        entered_by:
+                            record.entered_by,
+
+                        updated_at:
+                            new Date()
+                            .toISOString()
+                    },
+
+                    "?id=eq." +
+                    encodeURIComponent(
+                        existing[0].id
+                    )
+                );
+
+
+            } else {
+
+
+                await supabaseRequest(
+                    "readings",
+                    "POST",
+                    record
+                );
+
+            }
+
+        }
+
+
+        showStatus(
+            status,
+
+            records.length +
+            " reading(s) saved successfully.",
+
+            "success"
+        );
+
+
+        await loadEntryData();
+
+
+    } catch(error) {
+
+        showStatus(
+            status,
+
+            "Error saving readings: " +
+            error.message,
+
+            "error"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   SAVED READINGS
+========================================================= */
+
+async function loadSavedReadings() {
+
+    const from =
+        document
+            .getElementById(
+                "savedFrom"
+            )
+            .value;
+
+
+    const to =
+        document
+            .getElementById(
+                "savedTo"
+            )
+            .value;
+
+
+    let query =
+        "?select=id,meter_id,reading_date,reading,mf,entered_by" +
+        "&order=reading_date.desc";
+
+
+    if (from)
+        query +=
+            "&reading_date=gte." +
+            encodeURIComponent(
+                from
+            );
+
+
+    if (to)
+        query +=
+            "&reading_date=lte." +
+            encodeURIComponent(
+                to
+            );
+
+
+    const tbody =
+        document
+            .getElementById(
+                "savedTableBody"
+            );
+
+
+    tbody.innerHTML = `
+
+    <tr>
+
+        <td colspan="7">
+
+            <div class="loading-state">
+
+                <span class="loading-spinner"></span>
+
+                Loading readings...
+
+            </div>
+
+        </td>
+
+    </tr>
+
+    `;
+
+
+    try {
+
+
+        const readings =
+            await supabaseRequest(
+                "readings",
+                "GET",
+                null,
+                query
+            );
+
+
+        let html = "";
+
+
+        readings.forEach(
+            r => {
+
+
+                const meter =
+                    meters.find(
+                        m =>
+                            m.id ===
+                            r.meter_id
+                    );
+
+
+                if (!meter)
+                    return;
+
+
+                html += `
+
+                <tr>
+
+                    <td>
+                        ${escapeHtml(
+                            r.reading_date
+                        )}
+                    </td>
+
+
+                    <td class="meter-name">
+
+                        ${escapeHtml(
+                            meter.name
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            meter.category
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        <strong>
+                            ${escapeHtml(
+                                r.reading
+                            )}
+                        </strong>
+
+                    </td>
+
+
+                    <td>
+
+                        ${
+                            r.mf == null
+                            ? "NA"
+                            : Number(
+                                r.mf
+                              ).toLocaleString()
+                        }
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            r.entered_by || ""
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        <div class="actions">
+
+                            <button
+
+                                class="btn-small btn"
+
+                                onclick="editSavedReading(
+                                    '${escapeHtml(r.id)}'
+                                )">
+
+                                Edit
+
+                            </button>
+
+
+                            <button
+
+                                class="btn-small btn-red"
+
+                                onclick="deleteSavedReading(
+                                    '${escapeHtml(r.id)}'
+                                )">
+
+                                Delete
+
+                            </button>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+
+                `;
+
+            }
+        );
+
+
+        tbody.innerHTML =
+            html ||
+
+            `
+
+            <tr>
+
+                <td colspan="7">
+
+                    <div class="empty-state">
+
+                        <div class="empty-icon">
+                            📋
+                        </div>
+
+                        No readings found for the selected period.
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+            `;
+
+
+    } catch(error) {
+
+        tbody.innerHTML = `
+
+        <tr>
+
+            <td colspan="7">
+
+                <div class="status error">
+
+                    Unable to load readings:
+                    ${escapeHtml(
+                        error.message
+                    )}
+
+                </div>
+
+            </td>
+
+        </tr>
+
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   EDIT SAVED READING
+========================================================= */
+
+async function editSavedReading(
+    id
+) {
+
+    try {
+
+
+        const result =
+            await supabaseRequest(
+                "readings",
+                "GET",
+                null,
+
+                "?select=id,meter_id,reading_date,reading,mf,entered_by" +
+
+                "&id=eq." +
+                encodeURIComponent(id)
+            );
+
+
+        if (!result.length)
+            return;
+
+
+        const r =
+            result[0];
+
+
+        const meter =
+            meters.find(
+                m =>
+                    m.id ===
+                    r.meter_id
+            );
+
+
+        const newReading =
+            prompt(
+                "Enter new reading:",
+                r.reading
+            );
+
+
+        if (
+            newReading === null ||
+            !newReading.trim()
+        )
+            return;
+
+
+        if (
+            isRunHourMeter(meter) &&
+            timeToSeconds(newReading.trim()) === null
+        ) {
+            alert(
+                "Invalid run-hour format.\n\n" +
+                "Use H...H:MM:SS\n" +
+                "Hours: any number of digits\n" +
+                "Minutes: 00-59\n" +
+                "Seconds: 00-99"
+            );
+
+            return;
+        }
+
+
+        let newMF =
+            r.mf;
+
+
+        if (
+            !isRunHourMeter(meter)
+        ) {
+
+
+            const mfInput =
+                prompt(
+                    "Enter MF:",
+                    r.mf
+                );
+
+
+            if (
+                mfInput === null
+            )
+                return;
+
+
+            newMF =
+                Number(
+                    mfInput
+                );
+
+
+            if (isNaN(newMF)) {
+
+                alert(
+                    "Invalid MF."
+                );
+
+                return;
+
+            }
+
+        }
+
+
+        await supabaseRequest(
+            "readings",
+            "PATCH",
+
+            {
+
+                reading:
+                    newReading.trim(),
+
+                mf:
+                    newMF,
+
+                updated_at:
+                    new Date()
+                    .toISOString()
+
+            },
+
+            "?id=eq." +
+            encodeURIComponent(id)
+        );
+
+
+        /*
+         * Historical MF change also updates
+         * current Meter Master MF.
+         */
+
+        if (
+            !isRunHourMeter(meter) &&
+            newMF !== null
+        ) {
+
+
+            await supabaseRequest(
+                "meters",
+                "PATCH",
+
+                {
+                    mf:
+                        newMF
+                },
+
+                "?id=eq." +
+                encodeURIComponent(
+                    meter.id
+                )
+            );
+
+
+            meter.mf =
+                newMF;
+
+        }
+
+
+        alert(
+            "Reading updated successfully."
+        );
+
+
+        loadSavedReadings();
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to edit reading.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DELETE SAVED READING
+========================================================= */
+
+async function deleteSavedReading(
+    id
+) {
+
+    if (
+        !confirm(
+            "Delete this reading?"
+        )
+    )
+        return;
+
+
+    try {
+
+
+        await supabaseRequest(
+            "readings",
+            "DELETE",
+            null,
+
+            "?id=eq." +
+            encodeURIComponent(id)
+        );
+
+
+        loadSavedReadings();
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to delete.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   METER MASTER
+========================================================= */
+
+function openMaster() {
+
+    if (masterUnlocked) {
+
+        renderMeterMaster();
+
+        return;
+
+    }
+
+
+    document
+        .getElementById(
+            "masterPassword"
+        )
+        .value = "";
+
+
+    document
+        .getElementById(
+            "passwordError"
+        )
+        .innerHTML = "";
+
+
+    document
+        .getElementById(
+            "passwordModal"
+        )
+        .style.display =
+            "flex";
+
+}
+
+
+function checkMasterPassword() {
+
+    const password =
+        document
+            .getElementById(
+                "masterPassword"
+            )
+            .value;
+
+
+    if (
+        password !==
+        ADMIN_PASSWORD
+    ) {
+
+        document
+            .getElementById(
+                "passwordError"
+            )
+            .innerHTML =
+
+            '<div class="status error">' +
+            'Incorrect password.' +
+            '</div>';
+
+        return;
+
+    }
+
+
+    masterUnlocked =
+        true;
+
+
+    closeModal(
+        "passwordModal"
+    );
+
+
+    renderMeterMaster();
+
+}
+
+
+/* =========================================================
+   RENDER METER MASTER
+========================================================= */
+
+function renderMeterMaster() {
+
+    const area =
+        document
+            .getElementById(
+                "masterArea"
+            );
+
+
+    const categories = [
+
+        "Power Control Center (PCC) panel",
+
+        "DG KWH",
+
+        "Water Base - MCC panels",
+
+        "Solvent Base - MCC panels"
+
+    ];
+
+
+    let html = `
+
+    <div class="card">
+
+        <div class="master-toolbar">
+
+            <div>
+
+                <strong>
+                    Meter Configuration
+                </strong>
+
+                <div
+                    style="
+                        font-size:11px;
+                        color:#6c757d;
+                        margin-top:4px;
+                    ">
+
+                    Use ↑ and ↓ to change the display order.
+
+                </div>
+
+            </div>
+
+
+            <div class="master-actions">
+
+                <button
+                    class="btn-green"
+                    onclick="addNewMeter()">
+
+                    + Add New Meter
+
+                </button>
+
+
+                <button
+                    class="btn-gray"
+                    onclick="closeMaster()">
+
+                    Close
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    `;
+
+
+    categories.forEach(
+        category => {
+
+
+            const categoryMeters =
+                meters
+                    .filter(
+                        m =>
+                            m.category ===
+                            category
+                    )
+                    .sort(
+                        (a,b) =>
+                            Number(
+                                a.display_order ||
+                                999999
+                            )
+                            -
+                            Number(
+                                b.display_order ||
+                                999999
+                            )
+                    );
+
+
+            html += `
+
+            <div class="card">
+
+                <h3
+                    class="master-category-title">
+
+                    ${escapeHtml(
+                        category
+                    )}
+
+                </h3>
+
+
+                <div class="table-wrap">
+
+                <table>
+
+                <thead>
+
+                <tr>
+
+                    <th>
+                        Order
+                    </th>
+
+                    <th>
+                        Meter Name
+                    </th>
+
+                    <th>
+                        Unit
+                    </th>
+
+                    <th>
+                        MF
+                    </th>
+
+                    <th>
+                        Action
+                    </th>
+
+                </tr>
+
+                </thead>
+
+                <tbody>
+
+            `;
+
+
+            categoryMeters.forEach(
+                (meter,index) => {
+
+
+                    html += `
+
+                    <tr>
+
+                        <td class="master-order">
+
+                            ${meter.display_order}
+
+                        </td>
+
+
+                        <td class="meter-name">
+
+                            ${escapeHtml(
+                                meter.name
+                            )}
+
+                        </td>
+
+
+                        <td>
+
+                            ${
+                                isRunHourMeter(meter)
+                                ? "HH:MM:SS"
+                                : escapeHtml(
+                                    meter.unit || ""
+                                  )
+                            }
+
+                        </td>
+
+
+                        <td>
+
+                            ${
+                                isRunHourMeter(meter)
+                                ? "NA"
+                                : Number(
+                                    meter.mf || 0
+                                  ).toLocaleString()
+                            }
+
+                        </td>
+
+
+                        <td>
+
+                            <div class="actions">
+
+
+                                <button
+
+                                    class="btn-small btn"
+
+                                    onclick="moveMeter(
+                                        '${escapeHtml(meter.id)}',
+                                        'up'
+                                    )"
+
+                                    ${
+                                        index === 0
+                                        ? "disabled"
+                                        : ""
+                                    }>
+
+                                    ↑
+
+                                </button>
+
+
+                                <button
+
+                                    class="btn-small btn"
+
+                                    onclick="moveMeter(
+                                        '${escapeHtml(meter.id)}',
+                                        'down'
+                                    )"
+
+                                    ${
+                                        index ===
+                                        categoryMeters.length - 1
+                                        ? "disabled"
+                                        : ""
+                                    }>
+
+                                    ↓
+
+                                </button>
+
+
+                                <button
+
+                                    class="btn-small btn-green"
+
+                                    onclick="editMeter(
+                                        '${escapeHtml(meter.id)}'
+                                    )">
+
+                                    Edit
+
+                                </button>
+
+
+                                <button
+
+                                    class="btn-small btn-red"
+
+                                    onclick="deleteMeter(
+                                        '${escapeHtml(meter.id)}'
+                                    )">
+
+                                    Delete
+
+                                </button>
+
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    `;
+
+                }
+            );
+
+
+            html += `
+
+                </tbody>
+
+                </table>
+
+                </div>
+
+            </div>
+
+            `;
+
+        }
+    );
+
+
+    area.innerHTML =
+        html;
+
+}
+
+
+/* =========================================================
+   CLOSE MASTER
+========================================================= */
+
+function closeMaster() {
+
+    masterUnlocked =
+        false;
+
+
+    document
+        .getElementById(
+            "masterArea"
+        )
+        .innerHTML = "";
+
+}
+
+
+/* =========================================================
+   MOVE METER
+========================================================= */
+
+async function moveMeter(
+    id,
+    direction
+) {
+
+    const meter =
+        meters.find(
+            m =>
+                m.id === id
+        );
+
+
+    if (!meter)
+        return;
+
+
+    const categoryMeters =
+        meters
+            .filter(
+                m =>
+                    m.category ===
+                    meter.category
+            )
+            .sort(
+                (a,b) =>
+                    Number(
+                        a.display_order
+                    )
+                    -
+                    Number(
+                        b.display_order
+                    )
+            );
+
+
+    const index =
+        categoryMeters.findIndex(
+            m =>
+                m.id === id
+        );
+
+
+    const targetIndex =
+        direction === "up"
+        ? index - 1
+        : index + 1;
+
+
+    if (
+        targetIndex < 0 ||
+        targetIndex >=
+            categoryMeters.length
+    )
+        return;
+
+
+    const other =
+        categoryMeters[
+            targetIndex
+        ];
+
+
+    const oldOrder =
+        meter.display_order;
+
+
+    const newOrder =
+        other.display_order;
+
+
+    try {
+
+
+        await supabaseRequest(
+            "meters",
+            "PATCH",
+
+            {
+                display_order:
+                    -999999
+            },
+
+            "?id=eq." +
+            encodeURIComponent(
+                meter.id
+            )
+        );
+
+
+        await supabaseRequest(
+            "meters",
+            "PATCH",
+
+            {
+                display_order:
+                    oldOrder
+            },
+
+            "?id=eq." +
+            encodeURIComponent(
+                other.id
+            )
+        );
+
+
+        await supabaseRequest(
+            "meters",
+            "PATCH",
+
+            {
+                display_order:
+                    newOrder
+            },
+
+            "?id=eq." +
+            encodeURIComponent(
+                meter.id
+            )
+        );
+
+
+        meter.display_order =
+            newOrder;
+
+
+        other.display_order =
+            oldOrder;
+
+
+        meters =
+            sortMeters(
+                meters
+            );
+
+
+        renderMeterMaster();
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to change order.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   ADD NEW METER
+========================================================= */
+
+async function addNewMeter() {
+
+    const name =
+        prompt(
+            "Meter name:"
+        );
+
+
+    if (
+        !name ||
+        !name.trim()
+    )
+        return;
+
+
+    const category =
+        prompt(
+
+            "Category:\n\n" +
+
+            "1 = Power Control Center (PCC) panel\n" +
+
+            "2 = DG KWH\n" +
+
+            "3 = Water Base - MCC panels\n" +
+
+            "4 = Solvent Base - MCC panels"
+
+        );
+
+
+    const categories = {
+
+        "1":
+            "Power Control Center (PCC) panel",
+
+        "2":
+            "DG KWH",
+
+        "3":
+            "Water Base - MCC panels",
+
+        "4":
+            "Solvent Base - MCC panels"
+
+    };
+
+
+    if (
+        !categories[category]
+    )
+        return;
+
+
+    const unit =
+        prompt(
+            "Unit:\nkWh / MWh / GWh / HH:MM:SS (run hour)"
+        );
+
+
+    if (!unit)
+        return;
+
+
+    if (
+        ![
+            "kWh",
+            "MWh",
+            "GWh",
+            "HH:MM:SS"
+        ].includes(unit)
+    ) {
+
+        alert(
+            "Please enter a valid unit."
+        );
+
+        return;
+
+    }
+
+
+    let mf = null;
+
+
+    if (
+        unit !==
+        "HH:MM:SS"
+    ) {
+
+        mf =
+            Number(
+                prompt(
+                    "Multiplication Factor:",
+                    "1"
+                )
+            );
+
+
+        if (
+            isNaN(mf)
+        )
+            return;
+
+    }
+
+
+    const sameCategory =
+        meters.filter(
+            m =>
+                m.category ===
+                categories[category]
+        );
+
+
+    const maxOrder =
+        sameCategory.length
+        ?
+        Math.max(
+            ...sameCategory.map(
+                m =>
+                    Number(
+                        m.display_order ||
+                        0
+                    )
+            )
+        )
+        :
+        0;
+
+
+    try {
+
+
+        const result =
+            await supabaseRequest(
+                "meters",
+                "POST",
+
+                {
+
+                    name:
+                        name.trim(),
+
+                    category:
+                        categories[category],
+
+                    unit:
+                        unit,
+
+                    mf:
+                        mf,
+
+                    active:
+                        true,
+
+                    display_order:
+                        maxOrder + 1
+
+                }
+            );
+
+
+        meters.push(
+            result[0]
+        );
+
+
+        meters =
+            sortMeters(
+                meters
+            );
+
+
+        renderMeterMaster();
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to add meter.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   EDIT METER
+========================================================= */
+
+function editMeter(
+    id
+) {
+
+    const meter =
+        meters.find(
+            m =>
+                m.id === id
+        );
+
+
+    if (!meter)
+        return;
+
+
+    document
+        .getElementById(
+            "editMeterId"
+        )
+        .value =
+            meter.id;
+
+
+    document
+        .getElementById(
+            "editMeterName"
+        )
+        .value =
+            meter.name;
+
+
+    document
+        .getElementById(
+            "editMeterCategory"
+        )
+        .value =
+            meter.category;
+
+
+    document
+        .getElementById(
+            "editMeterUnit"
+        )
+        .value =
+
+            isRunHourMeter(meter)
+            ? "HH:MM:SS"
+            : meter.unit;
+
+
+    document
+        .getElementById(
+            "editMeterMF"
+        )
+        .value =
+
+            isRunHourMeter(meter)
+            ? ""
+            : meter.mf;
+
+
+    document
+        .getElementById(
+            "meterModal"
+        )
+        .style.display =
+            "flex";
+
+}
+
+
+/* =========================================================
+   SAVE METER
+========================================================= */
+
+async function saveMeter() {
+
+    const id =
+        document
+            .getElementById(
+                "editMeterId"
+            )
+            .value;
+
+
+    const meter =
+        meters.find(
+            m =>
+                m.id === id
+        );
+
+
+    if (!meter)
+        return;
+
+
+    const name =
+        document
+            .getElementById(
+                "editMeterName"
+            )
+            .value
+            .trim();
+
+
+    const category =
+        document
+            .getElementById(
+                "editMeterCategory"
+            )
+            .value;
+
+
+    const unit =
+        document
+            .getElementById(
+                "editMeterUnit"
+            )
+            .value;
+
+
+    if (!name) {
+
+        alert(
+            "Meter name is required."
+        );
+
+        return;
+
+    }
+
+
+    let mf = null;
+
+
+    if (
+        unit !==
+        "HH:MM:SS"
+    ) {
+
+        mf =
+            Number(
+                document
+                    .getElementById(
+                        "editMeterMF"
+                    )
+                    .value
+            );
+
+
+        if (
+            isNaN(mf)
+        ) {
+
+            alert(
+                "Enter valid MF."
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    try {
+
+
+        const oldCategory =
+            meter.category;
+
+
+        let newOrder =
+            meter.display_order;
+
+
+        if (
+            oldCategory !==
+            category
+        ) {
+
+
+            const target =
+                meters.filter(
+                    m =>
+                        m.category ===
+                        category
+                );
+
+
+            newOrder =
+                target.length
+                ?
+                Math.max(
+                    ...target.map(
+                        m =>
+                            Number(
+                                m.display_order ||
+                                0
+                            )
+                    )
+                ) + 1
+                :
+                1;
+
+        }
+
+
+        await supabaseRequest(
+            "meters",
+            "PATCH",
+
+            {
+
+                name:
+                    name,
+
+                category:
+                    category,
+
+                unit:
+                    unit,
+
+                mf:
+                    mf,
+
+                display_order:
+                    newOrder
+
+            },
+
+            "?id=eq." +
+            encodeURIComponent(id)
+        );
+
+
+        meter.name =
+            name;
+
+
+        meter.category =
+            category;
+
+
+        meter.unit =
+            unit;
+
+
+        meter.mf =
+            mf;
+
+
+        meter.display_order =
+            newOrder;
+
+
+        meters =
+            sortMeters(
+                meters
+            );
+
+
+        closeModal(
+            "meterModal"
+        );
+
+
+        renderMeterMaster();
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to update meter.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DELETE METER
+========================================================= */
+
+async function deleteMeter(
+    id
+) {
+
+    const meter =
+        meters.find(
+            m =>
+                m.id === id
+        );
+
+
+    if (!meter)
+        return;
+
+
+    if (
+        !confirm(
+            "Delete meter:\n\n" +
+            meter.name +
+            "\n\nContinue?"
+        )
+    )
+        return;
+
+
+    try {
+
+
+        await supabaseRequest(
+            "meters",
+            "PATCH",
+
+            {
+                active:
+                    false
+            },
+
+            "?id=eq." +
+            encodeURIComponent(id)
+        );
+
+
+        meters =
+            meters.filter(
+                m =>
+                    m.id !== id
+            );
+
+
+        meters =
+            sortMeters(
+                meters
+            );
+
+
+        renderMeterMaster();
+
+
+    } catch(error) {
+
+        alert(
+            "Unable to delete meter.\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DOWNLOAD EXCEL - MACHINE FEEDER DETAILS
+========================================================= */
+
+/*
+   This is the uploaded sample workbook used as the formatting template.
+   We keep the sample structure and formatting, but replace its daily
+   values with the readings saved in Supabase. No Excel formulas are added
+   in this step.
+*/
+const MACHINE_FEEDER_TEMPLATE_BASE64 =
+    "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AI0WjSdVAQAA4gIAACIAAAAAAAAAAAAAAAAAuEcAAHhsL2V4dGVybmFsTGlua3MvZXh0ZXJuYWxMaW5rNi54bWxQSwECLQAUAAYACAAAACEAjRaNJ1UBAADiAgAAIgAAAAAAAAAAAAAAAABNSQAAeGwvZXh0ZXJuYWxMaW5rcy9leHRlcm5hbExpbms3LnhtbFBLAQItABQABgAIAAAAIQAhmJVvTgIAAF0IAAAiAAAAAAAAAAAAAAAAAOJKAAB4bC9leHRlcm5hbExpbmtzL2V4dGVybmFsTGluazgueG1sUEsBAi0AFAAGAAgAAAAhAEW1LxC4CQAA/DsAACcAAAAAAAAAAAAAAAAAcE0AAHhsL3ByaW50ZXJTZXR0aW5ncy9wcmludGVyU2V0dGluZ3MxLmJpblBLAQItABQABgAIAAAAIQCtMdRdpAAAANoAAAAVAAAAAAAAAAAAAAAAAG1XAAB4bC9wZXJzb25zL3BlcnNvbi54bWxQSwECLQAUAAYACAAAACEA2wEraUoBAABpAgAAEQAAAAAAAAAAAAAAAABEWAAAZG9jUHJvcHMvY29yZS54bWxQSwECLQAUAAYACAAAACEA/FKC9ZMBAAAhAwAAEAAAAAAAAAAAAAAAAADFWgAAZG9jUHJvcHMvYXBwLnhtbFBLAQItABQABgAIAAAAIQBCDdBuLwEAAKIBAAAtAAAAAAAAAAAAAAAAAI5dAAB4bC9leHRlcm5hbExpbmtzL19yZWxzL2V4dGVybmFsTGluazEueG1sLnJlbHNQSwECLQAUAAYACAAAACEAQBDr7B0BAADEAQAALQAAAAAAAAAAAAAAAAAIXwAAeGwvZXh0ZXJuYWxMaW5rcy9fcmVscy9leHRlcm5hbExpbmsyLnhtbC5yZWxzUEsBAi0AFAAGAAgAAAAhADWHfIgjAQAAzQEAAC0AAAAAAAAAAAAAAAAAcGAAAHhsL2V4dGVybmFsTGlua3MvX3JlbHMvZXh0ZXJuYWxMaW5rMy54bWwucmVsc1BLAQItABQABgAIAAAAIQCxEeRxRQEAAPwBAAAtAAAAAAAAAAAAAAAAAN5hAAB4bC9leHRlcm5hbExpbmtzL19yZWxzL2V4dGVybmFsTGluazQueG1sLnJlbHNQSwECLQAUAAYACAAAACEAu3zEGw0BAAC2AQAALQAAAAAAAAAAAAAAAABuYwAAeGwvZXh0ZXJuYWxMaW5rcy9fcmVscy9leHRlcm5hbExpbms1LnhtbC5yZWxzUEsBAi0AFAAGAAgAAAAhAHhc2h48AQAA2QEAAC0AAAAAAAAAAAAAAAAAxmQAAHhsL2V4dGVybmFsTGlua3MvX3JlbHMvZXh0ZXJuYWxMaW5rNi54bWwucmVsc1BLAQItABQABgAIAAAAIQDOyo15BQEAAIcBAAAtAAAAAAAAAAAAAAAAAE1mAAB4bC9leHRlcm5hbExpbmtzL19yZWxzL2V4dGVybmFsTGluazcueG1sLnJlbHNQSwECLQAUAAYACAAAACEA4MH57yEBAADKAQAALQAAAAAAAAAAAAAAAACdZwAAeGwvZXh0ZXJuYWxMaW5rcy9fcmVscy9leHRlcm5hbExpbms4LnhtbC5yZWxzUEsFBgAAAAAdAB0AwQgAAAlpAAAAAA==";
+
+
+function base64ToArrayBuffer(base64) {
+
+    const binaryString =
+        atob(base64);
+
+    const len =
+        binaryString.length;
+
+    const bytes =
+        new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    return bytes.buffer;
+}
+
+
+function dateToLocalISO(date) {
+
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+
+    return `${y}-${m}-${d}`;
+}
+
+
+function addDaysISO(isoDate, days) {
+
+    const parts =
+        isoDate.split("-").map(Number);
+
+    const d =
+        new Date(parts[0], parts[1] - 1, parts[2]);
+
+    d.setDate(d.getDate() + days);
+
+    return dateToLocalISO(d);
+}
+
+
+function buildDateList(from, to) {
+
+    const dates = [];
+    let current = from;
+
+    while (current <= to) {
+
+        dates.push(current);
+        current = addDaysISO(current, 1);
+
+    }
+
+    return dates;
+}
+
+
+function excelDateFromISO(isoDate) {
+
+    const parts =
+        isoDate.split("-").map(Number);
+
+    return new Date(
+        parts[0],
+        parts[1] - 1,
+        parts[2]
+    );
+}
+
+
+function copyExcelColumnStyle(sourceColumn, targetColumn) {
+
+    targetColumn.width = sourceColumn.width || 13;
+
+    targetColumn.hidden = sourceColumn.hidden;
+
+    targetColumn.outlineLevel = sourceColumn.outlineLevel;
+
+    for (let row = 1; row <= sourceColumn.worksheet.rowCount; row++) {
+
+        const sourceCell =
+            sourceColumn.getCell(row);
+
+        const targetCell =
+            targetColumn.getCell(row);
+
+        if (sourceCell.style) {
+            targetCell.style =
+                JSON.parse(JSON.stringify(sourceCell.style));
+        }
+
+        if (sourceCell.numFmt) {
+            targetCell.numFmt =
+                sourceCell.numFmt;
+        }
+
+        if (sourceCell.alignment) {
+            targetCell.alignment =
+                JSON.parse(JSON.stringify(sourceCell.alignment));
+        }
+
+        if (sourceCell.border) {
+            targetCell.border =
+                JSON.parse(JSON.stringify(sourceCell.border));
+        }
+
+        if (sourceCell.fill) {
+            targetCell.fill =
+                JSON.parse(JSON.stringify(sourceCell.fill));
+        }
+
+        if (sourceCell.font) {
+            targetCell.font =
+                JSON.parse(JSON.stringify(sourceCell.font));
+        }
+
+        if (sourceCell.protection) {
+            targetCell.protection =
+                JSON.parse(JSON.stringify(sourceCell.protection));
+        }
+
+    }
+}
+
+
+function readingValueForExcel(reading) {
+
+    if (reading === null || reading === undefined) {
+        return null;
+    }
+
+    const value = String(reading).trim();
+
+    if (value === "") {
+        return null;
+    }
+
+    /*
+       Keep HH:MM:SS readings as text so Excel displays them exactly as
+       entered. Numeric energy readings are written as numbers.
+    */
+    if (/^\d+:\d{2}:\d{2}$/.test(value)) {
+        const parts = value.split(":");
+        const minutes = Number(parts[1]);
+        const seconds = Number(parts[2]);
+
+        if (
+            minutes >= 0 && minutes <= 59 &&
+            seconds >= 0 && seconds <= 59
+        ) {
+            return value;
+        }
+    }
+
+    const numeric = Number(value);
+
+    return Number.isFinite(numeric)
+        ? numeric
+        : value;
+}
+
+
+function getMeterSectionRows() {
+
+    /*
+       The row numbers below are from the supplied sample workbook.
+       Category rows are section headers and all other rows are meters.
+    */
+    return {
+        "Power Control Center (PCC) panel": 2,
+        "DG KWH": 18,
+        "Water Base - MCC panels": 21,
+        "Solvent Base - MCC panels": 46
+    };
+}
+
+
+async function downloadExcel() {
+
+    const from =
+        document
+            .getElementById("downloadFrom")
+            .value;
+
+    const to =
+        document
+            .getElementById("downloadTo")
+            .value;
+
+    const statusElement =
+        document.getElementById("downloadStatus");
+
+    if (!from || !to) {
+
+        showStatus(
+            statusElement,
+            "Please select both From Date and To Date.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (from > to) {
+
+        showStatus(
+            statusElement,
+            "From Date cannot be later than To Date.",
+            "error"
+        );
+
+        return;
+    }
+
+    try {
+
+        if (typeof ExcelJS === "undefined") {
+            throw new Error("Excel generator library could not be loaded. Please check your internet connection and try again.");
+        }
+
+        showStatus(
+            statusElement,
+            "Preparing Excel file...",
+            "success"
+        );
+
+        const dates =
+            buildDateList(from, to);
+
+        /*
+           Fetch every reading up to the selected To Date.
+           IMPORTANT DATE RULE:
+           - A reading entered on a date belongs ONLY to that date.
+           - Do NOT carry an entered reading forward into future unentered dates.
+           - If an earlier date was missed, that missed date may use the NEXT
+             actual entered reading. This is a backward fill only.
+           - Future dates after the last actual entry remain blank.
+        */
+        const query =
+            "?select=meter_id,reading_date,reading,mf,entered_by" +
+            "&reading_date=gte." + encodeURIComponent(from) +
+            "&reading_date=lte." + encodeURIComponent(to) +
+            "&order=reading_date.asc" +
+            "&limit=10000";
+
+        const readings =
+            await supabaseRequest(
+                "readings",
+                "GET",
+                null,
+                query
+            );
+
+        const readingsByMeter = {};
+
+        readings.forEach(r => {
+
+            if (!readingsByMeter[r.meter_id]) {
+                readingsByMeter[r.meter_id] = [];
+            }
+
+            readingsByMeter[r.meter_id].push(r);
+
+        });
+
+        /*
+           Build daily values using the ACTUAL saved date first.
+
+           Example:
+             07-09 = entered 100
+             08-09 = not entered
+             09-09 = not entered
+
+           Export must show:
+             07-09 = 100
+             08-09 = blank
+             09-09 = blank
+
+           If instead 09-09 is later entered as 105, then the missed
+           08-09 date can use 105 (backward fill), while 07-09 remains 100.
+           This prevents old readings from being copied into future dates.
+        */
+        const dailyValues = {};
+
+        meters.forEach(meter => {
+
+            const history =
+                (readingsByMeter[meter.id] || [])
+                    .slice()
+                    .sort((a, b) =>
+                        String(a.reading_date)
+                            .localeCompare(String(b.reading_date))
+                    );
+
+            dailyValues[meter.id] = {};
+
+            /* Map each actual saved date to its actual reading. */
+            const actualByDate = {};
+
+            history.forEach(reading => {
+                /* PostgREST normally returns YYYY-MM-DD for a date column. */
+                const savedDate = String(reading.reading_date || "").slice(0, 10);
+                if (savedDate) {
+                    actualByDate[savedDate] = reading.reading;
+                }
+            });
+
+            /*
+               EXPORT RULE - NEVER INVENT A READING:
+               A value is written only when a reading was actually saved on
+               that exact date. No reading is copied into a future date.
+               Missed dates remain blank in the raw Machine Feeder Details
+               sheet. The Consumption sheet uses the previous actual saved
+               reading when calculating the next actual reading.
+            */
+            dates.forEach(date => {
+                dailyValues[meter.id][date] =
+                    Object.prototype.hasOwnProperty.call(actualByDate, date)
+                    ? actualByDate[date]
+                    : null;
+            });
+
+        });
+
+        /*
+           IMPORTANT: Do not write the uploaded workbook back out through
+           ExcelJS. The sample contains external-link metadata which can be
+           rewritten by ExcelJS and may cause Excel to report corrupted
+           content. Instead, use the sample only as a STYLE/LAYOUT source
+           and create a clean workbook for the export.
+        */
+        const templateWorkbook = new ExcelJS.Workbook();
+
+        await templateWorkbook.xlsx.load(
+            base64ToArrayBuffer(
+                MACHINE_FEEDER_TEMPLATE_BASE64
+            )
+        );
+
+        const templateWorksheet =
+            templateWorkbook.getWorksheet("Machine Feeder Details") ||
+            templateWorkbook.worksheets[0];
+
+        if (!templateWorksheet) {
+            throw new Error("Machine Feeder Details worksheet was not found in the sample template.");
+        }
+
+        /* Exact section-header rows from the supplied Machine Feeder Details format. */
+        const sectionRows = {
+            "Power Control Center (PCC) panel": 2,
+            "DG KWH": 18,
+            "Water Base - MCC panels": 21,
+            "Solvent Base - MCC panels": 46
+        };
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Machine Feeder Details");
+
+        /* Copy worksheet-level settings from the sample. */
+        worksheet.views = JSON.parse(JSON.stringify(templateWorksheet.views || []));
+        worksheet.properties = JSON.parse(JSON.stringify(templateWorksheet.properties || {}));
+        worksheet.pageSetup = JSON.parse(JSON.stringify(templateWorksheet.pageSetup || {}));
+        worksheet.pageMargins = JSON.parse(JSON.stringify(templateWorksheet.pageMargins || {}));
+        worksheet.printOptions = JSON.parse(JSON.stringify(templateWorksheet.printOptions || {}));
+        worksheet.headerFooter = JSON.parse(JSON.stringify(templateWorksheet.headerFooter || {}));
+        worksheet.autoFilter = templateWorksheet.autoFilter
+            ? JSON.parse(JSON.stringify(templateWorksheet.autoFilter))
+            : undefined;
+
+        /* Copy the sample column widths. */
+        for (let colIndex = 1; colIndex <= Math.max(templateWorksheet.columnCount, dates.length + 1); colIndex++) {
+            const sourceColumn = templateWorksheet.getColumn(colIndex);
+            const targetColumn = worksheet.getColumn(colIndex);
+            targetColumn.width = sourceColumn.width || (colIndex === 1 ? 32.8164 : 14);
+            targetColumn.hidden = false;
+            targetColumn.outlineLevel = sourceColumn.outlineLevel || 0;
+        }
+
+        worksheet.getColumn(1).width = 32.8164;
+
+        /* Copy sample row heights. */
+        for (let row = 1; row <= templateWorksheet.rowCount; row++) {
+            worksheet.getRow(row).height = templateWorksheet.getRow(row).height;
+        }
+
+        /* Copy the sample cell styles and labels, but not its old values. */
+        for (let row = 1; row <= templateWorksheet.rowCount; row++) {
+            for (let col = 1; col <= Math.min(templateWorksheet.columnCount, dates.length + 1); col++) {
+                const sourceCell = templateWorksheet.getCell(row, col);
+                const targetCell = worksheet.getCell(row, col);
+
+                if (sourceCell.style) {
+                    targetCell.style = JSON.parse(JSON.stringify(sourceCell.style));
+                }
+                if (sourceCell.numFmt) targetCell.numFmt = sourceCell.numFmt;
+                if (sourceCell.alignment) targetCell.alignment = JSON.parse(JSON.stringify(sourceCell.alignment));
+                if (sourceCell.border) targetCell.border = JSON.parse(JSON.stringify(sourceCell.border));
+                if (sourceCell.fill) targetCell.fill = JSON.parse(JSON.stringify(sourceCell.fill));
+                if (sourceCell.font) targetCell.font = JSON.parse(JSON.stringify(sourceCell.font));
+                if (sourceCell.protection) targetCell.protection = JSON.parse(JSON.stringify(sourceCell.protection));
+            }
+        }
+
+        /*
+           For dates beyond the sample's B:K range, clone the B-column CELL
+           styles.  ExcelJS Column objects do not reliably expose getCell()
+           in all browser builds, which caused:
+             sourceDateColumn.getCell is not a function
+           Use worksheet.getCell(row, 2) instead.
+        */
+        const sourceDateColumn = templateWorksheet.getColumn(2);
+        const sourceDateColumnWidth = sourceDateColumn && sourceDateColumn.width
+            ? sourceDateColumn.width
+            : 14;
+
+        for (let colIndex = 2; colIndex <= dates.length + 1; colIndex++) {
+            const targetColumn = worksheet.getColumn(colIndex);
+            targetColumn.width = sourceDateColumnWidth;
+
+            if (colIndex > templateWorksheet.columnCount) {
+                for (let row = 1; row <= templateWorksheet.rowCount; row++) {
+                    const sourceCell = templateWorksheet.getCell(row, 2);
+                    const targetCell = worksheet.getCell(row, colIndex);
+
+                    if (sourceCell.style) targetCell.style = JSON.parse(JSON.stringify(sourceCell.style));
+                    if (sourceCell.numFmt) targetCell.numFmt = sourceCell.numFmt;
+                    if (sourceCell.alignment) targetCell.alignment = JSON.parse(JSON.stringify(sourceCell.alignment));
+                    if (sourceCell.border) targetCell.border = JSON.parse(JSON.stringify(sourceCell.border));
+                    if (sourceCell.fill) targetCell.fill = JSON.parse(JSON.stringify(sourceCell.fill));
+                    if (sourceCell.font) targetCell.font = JSON.parse(JSON.stringify(sourceCell.font));
+                    if (sourceCell.protection) targetCell.protection = JSON.parse(JSON.stringify(sourceCell.protection));
+                }
+            }
+        }
+
+        /* Put the sample equipment/section labels into column A. */
+        for (let row = 1; row <= templateWorksheet.rowCount; row++) {
+            worksheet.getCell(row, 1).value = templateWorksheet.getCell(row, 1).value;
+        }
+
+        /* Header */
+        worksheet.getCell(1, 1).value = "Equipment";
+        dates.forEach((date, index) => {
+            const cell = worksheet.getCell(1, index + 2);
+            cell.value = excelDateFromISO(date);
+            cell.numFmt = "mm-dd-yy";
+            cell.font = { ...cell.font, bold: true, size: 12 };
+            cell.alignment = { horizontal: "center", vertical: "center" };
+        });
+
+        /* Keep the four section rows blank under their headers. */
+        Object.values(sectionRows).forEach(row => {
+            for (let col = 2; col <= dates.length + 1; col++) {
+                worksheet.getCell(row, col).value = null;
+            }
+        });
+
+        /* Map the sample's equipment rows to the corresponding app meters. */
+        for (let row = 2; row <= templateWorksheet.rowCount; row++) {
+            const label = templateWorksheet.getCell(row, 1).value;
+            if (!label || sectionRows[label]) continue;
+
+            let category = null;
+            if (row >= 3 && row <= 17) {
+                category = "Power Control Center (PCC) panel";
+            } else if (row >= 19 && row <= 20) {
+                category = "DG KWH";
+            } else if (row >= 22 && row <= 45) {
+                category = "Water Base - MCC panels";
+            } else if (row >= 47 && row <= 71) {
+                category = "Solvent Base - MCC panels";
+            }
+            if (!category) continue;
+
+            const normalizeExcelEquipmentName = value =>
+                String(value || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "");
+
+            const excelNameAliases = {
+                "thinnercirculationpump": "Thinner circulation pump RUN HOUR"
+            };
+
+            const wantedName =
+                excelNameAliases[normalizeExcelEquipmentName(label)] ||
+                String(label);
+
+            const meter = meters.find(m =>
+                m.category === category &&
+                (m.name === wantedName ||
+                 normalizeExcelEquipmentName(m.name) === normalizeExcelEquipmentName(wantedName))
+            );
+
+            if (!meter) continue;
+
+            for (let i = 0; i < dates.length; i++) {
+                worksheet.getCell(row, i + 2).value =
+                    readingValueForExcel(dailyValues[meter.id][dates[i]]);
+            }
+        }
+
+        worksheet.freezePanes = "B2";
+        worksheet.getColumn(1).width = 32.8164;
+
+        for (let row = 2; row <= worksheet.rowCount; row++) {
+            for (let col = 2; col <= dates.length + 1; col++) {
+                const cell = worksheet.getCell(row, col);
+                if (sectionRows[worksheet.getCell(row, 1).value]) {
+                    cell.alignment = { horizontal: "center", vertical: "center" };
+                }
+            }
+        }
+
+        /* =========================================================
+           CONSUMPTION SHEET
+           Only actual saved readings are included. Missing dates are not
+           fabricated and future dates never receive copied readings.
+        ========================================================= */
+        const consumptionSheet =
+            workbook.addWorksheet("Consumption");
+
+        const consumptionHeaders = [
+            "Date",
+            "Category",
+            "Meter Name",
+            "Unit",
+            "Previous Actual Date",
+            "Previous Actual",
+            "Today Actual",
+            "Previous MF",
+            "Today MF",
+            "Consumption"
+        ];
+
+        consumptionHeaders.forEach((header, index) => {
+            const cell = consumptionSheet.getCell(1, index + 1);
+            cell.value = header;
+            cell.font = { bold: true, size: 11 };
+            cell.alignment = { horizontal: "center", vertical: "center" };
+        });
+
+        let consumptionRow = 2;
+
+        meters.forEach(meter => {
+            const history =
+                (readingsByMeter[meter.id] || [])
+                    .slice()
+                    .filter(r => {
+                        const savedDate = String(r.reading_date || "").slice(0, 10);
+                        return savedDate >= from && savedDate <= to;
+                    })
+                    .sort((a, b) =>
+                        String(a.reading_date).localeCompare(String(b.reading_date))
+                    );
+
+            let previous = null;
+
+            history.forEach(current => {
+                const currentValue = String(current.reading ?? "").trim();
+
+                if (!currentValue)
+                    return;
+
+                const row = consumptionSheet.getRow(consumptionRow++);
+                const runHour = isRunHourMeter(meter);
+                const currentMF = runHour ? null : Number(current.mf ?? meter.mf ?? 0);
+                const previousMF = previous && !runHour
+                    ? Number(previous.mf ?? meter.mf ?? 0)
+                    : null;
+
+                row.getCell(1).value = excelDateFromISO(String(current.reading_date).slice(0, 10));
+                row.getCell(1).numFmt = "dd-mm-yyyy";
+                row.getCell(2).value = meter.category;
+                row.getCell(3).value = meter.name;
+                row.getCell(4).value = runHour ? "HH:MM:SS" : (meter.unit || "");
+                row.getCell(5).value = previous
+                    ? excelDateFromISO(String(previous.reading_date).slice(0, 10))
+                    : null;
+                if (previous) row.getCell(5).numFmt = "dd-mm-yyyy";
+                row.getCell(6).value = previous ? readingValueForExcel(previous.reading) : null;
+                row.getCell(7).value = readingValueForExcel(currentValue);
+                row.getCell(8).value = runHour ? "NA" : previousMF;
+                row.getCell(9).value = runHour ? "NA" : currentMF;
+
+                if (previous) {
+                    if (runHour) {
+                        const p = timeToSeconds(previous.reading);
+                        const c = timeToSeconds(currentValue);
+                        row.getCell(10).value =
+                            p !== null && c !== null && c >= p
+                            ? formatRunHour(c - p)
+                            : null;
+                    } else {
+                        const p = Number(previous.reading);
+                        const c = Number(currentValue);
+                        row.getCell(10).value =
+                            Number.isFinite(p) && Number.isFinite(c)
+                            ? (c * currentMF) - (p * previousMF)
+                            : null;
+                    }
+                }
+
+                previous = current;
+            });
+        });
+
+        consumptionSheet.freezePanes = "A2";
+        const consumptionWidths = [14, 32, 36, 14, 20, 18, 18, 15, 15, 20];
+        consumptionWidths.forEach((width, i) => {
+            consumptionSheet.getColumn(i + 1).width = width;
+        });
+
+        for (let row = 2; row < consumptionRow; row++) {
+            consumptionSheet.getCell(row, 1).alignment = { horizontal: "center" };
+            consumptionSheet.getCell(row, 5).alignment = { horizontal: "center" };
+        }
+
+        const buffer =
+            await workbook.xlsx.writeBuffer();
+
+        const blob =
+            new Blob(
+                [buffer],
+                {
+                    type:
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                }
+            );
+
+        const url =
+            URL.createObjectURL(blob);
+
+        const a =
+            document.createElement("a");
+
+        a.href = url;
+        a.download =
+            "Machine_Feeder_Details_" +
+            from.replaceAll("-", "") +
+            "_to_" +
+            to.replaceAll("-", "") +
+            ".xlsx";
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1000);
+
+        showStatus(
+            statusElement,
+            dates.length +
+            " day(s) exported successfully in Machine Feeder Details Excel format. Actual readings were kept only on their entered dates. No readings were copied into future dates.",
+            "success"
+        );
+
+    } catch (error) {
+
+        console.error("Excel download error:", error);
+
+        showStatus(
+            statusElement,
+            "Excel download failed: " +
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   CSV ESCAPE
+========================================================= */
+
+function csvEscape(
+    value
+) {
+
+    value =
+        String(
+            value ?? ""
+        );
+
+
+    if (
+
+        value.includes(",") ||
+
+        value.includes('"') ||
+
+        value.includes("\n")
+
+    ) {
+
+        return '"' +
+            value.replace(
+                /"/g,
+                '""'
+            ) +
+            '"';
+
+    }
+
+
+    return value;
+
+}
+
+
+/* =========================================================
+   UTILITIES
+========================================================= */
+
+function showStatus(
+    element,
+    message,
+    type
+) {
+
+    element.innerHTML =
+
+        '<div class="status ' +
+        type +
+        '">' +
+        escapeHtml(message) +
+        '</div>';
+
+}
+
+
+function closeModal(
+    id
+) {
+
+    document
+        .getElementById(id)
+        .style.display =
+            "none";
+
+}
+
+
+function escapeHtml(
+    value
+) {
+
+    return String(
+        value ?? ""
+    )
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+init();
+
+</script>
+
+</body>
+</html>
