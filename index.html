@@ -5982,14 +5982,52 @@ function buildDateList(from, to) {
 
 function excelDateFromISO(isoDate) {
 
-    const parts =
-        isoDate.split("-").map(Number);
+    /*
+       IMPORTANT:
+       Do NOT return a JavaScript Date object here.
 
-    return new Date(
-        parts[0],
-        parts[1] - 1,
-        parts[2]
-    );
+       A date-only value such as 2026-09-21 must remain exactly
+       21-09-2026 in Excel. JavaScript Date objects carry timezone
+       information, and ExcelJS can serialize a local-midnight Date
+       through UTC, which can shift the displayed date back by one day.
+
+       Return the Excel serial number calculated from UTC date parts.
+       This contains no timezone component, so:
+           2026-09-21 -> Excel 21-09-2026
+           2026-09-20 -> Excel 20-09-2026
+    */
+
+    const match =
+        String(isoDate || "").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+
+    if (!match) {
+        return null;
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+
+    if (
+        !Number.isInteger(year) ||
+        !Number.isInteger(month) ||
+        !Number.isInteger(day) ||
+        month < 1 || month > 12 ||
+        day < 1 || day > 31
+    ) {
+        return null;
+    }
+
+    /*
+       Excel's 1900 date system:
+       1970-01-01 = serial 25569.
+
+       Using Date.UTC only for the mathematical serial calculation
+       prevents the browser's local timezone from affecting the result.
+    */
+    return Math.floor(
+        Date.UTC(year, month - 1, day) / 86400000
+    ) + 25569;
 }
 
 
