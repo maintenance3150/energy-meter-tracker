@@ -6405,8 +6405,18 @@ async function downloadExcel() {
         worksheet.getCell(1, 1).value = "Equipment";
         dates.forEach((date, index) => {
             const cell = worksheet.getCell(1, index + 2);
-            cell.value = excelDateFromISO(date);
-            cell.numFmt = "mm-dd-yy";
+
+            /*
+               Keep the top/header date as an explicit date string.
+               This guarantees the selected export dates are visibly shown
+               in the Excel header and avoids any timezone conversion.
+            */
+            const parts = String(date || "").split("-");
+            cell.value =
+                parts.length === 3
+                    ? `${parts[2]}-${parts[1]}-${parts[0]}`
+                    : String(date || "");
+
             cell.font = { ...cell.font, bold: true, size: 12 };
             cell.alignment = { horizontal: "center", vertical: "center" };
         });
@@ -6474,109 +6484,7 @@ async function downloadExcel() {
             }
         }
 
-        /* =========================================================
-           CONSUMPTION SHEET
-           Only actual saved readings are included. Missing dates are not
-           fabricated and future dates never receive copied readings.
-        ========================================================= */
-        const consumptionSheet =
-            workbook.addWorksheet("Consumption");
-
-        const consumptionHeaders = [
-            "Date",
-            "Category",
-            "Meter Name",
-            "Unit",
-            "Previous Actual Date",
-            "Previous Actual",
-            "Today Actual",
-            "Previous MF",
-            "Today MF",
-            "Consumption"
-        ];
-
-        consumptionHeaders.forEach((header, index) => {
-            const cell = consumptionSheet.getCell(1, index + 1);
-            cell.value = header;
-            cell.font = { bold: true, size: 11 };
-            cell.alignment = { horizontal: "center", vertical: "center" };
-        });
-
-        let consumptionRow = 2;
-
-        meters.forEach(meter => {
-            const history =
-                (readingsByMeter[meter.id] || [])
-                    .slice()
-                    .filter(r => {
-                        const savedDate = String(r.reading_date || "").slice(0, 10);
-                        return savedDate >= from && savedDate <= to;
-                    })
-                    .sort((a, b) =>
-                        String(a.reading_date).localeCompare(String(b.reading_date))
-                    );
-
-            let previous = null;
-
-            history.forEach(current => {
-                const currentValue = String(current.reading ?? "").trim();
-
-                if (!currentValue)
-                    return;
-
-                const row = consumptionSheet.getRow(consumptionRow++);
-                const runHour = isRunHourMeter(meter);
-                const currentMF = runHour ? null : Number(current.mf ?? meter.mf ?? 0);
-                const previousMF = previous && !runHour
-                    ? Number(previous.mf ?? meter.mf ?? 0)
-                    : null;
-
-                row.getCell(1).value = excelDateFromISO(String(current.reading_date).slice(0, 10));
-                row.getCell(1).numFmt = "dd-mm-yyyy";
-                row.getCell(2).value = meter.category;
-                row.getCell(3).value = meter.name;
-                row.getCell(4).value = runHour ? "HH:MM:SS" : (meter.unit || "");
-                row.getCell(5).value = previous
-                    ? excelDateFromISO(String(previous.reading_date).slice(0, 10))
-                    : null;
-                if (previous) row.getCell(5).numFmt = "dd-mm-yyyy";
-                row.getCell(6).value = previous ? readingValueForExcel(previous.reading) : null;
-                row.getCell(7).value = readingValueForExcel(currentValue);
-                row.getCell(8).value = runHour ? "NA" : previousMF;
-                row.getCell(9).value = runHour ? "NA" : currentMF;
-
-                if (previous) {
-                    if (runHour) {
-                        const p = timeToSeconds(previous.reading);
-                        const c = timeToSeconds(currentValue);
-                        row.getCell(10).value =
-                            p !== null && c !== null && c >= p
-                            ? formatRunHour(c - p)
-                            : null;
-                    } else {
-                        const p = Number(previous.reading);
-                        const c = Number(currentValue);
-                        row.getCell(10).value =
-                            Number.isFinite(p) && Number.isFinite(c)
-                            ? (c * currentMF) - (p * previousMF)
-                            : null;
-                    }
-                }
-
-                previous = current;
-            });
-        });
-
-        consumptionSheet.freezePanes = "A2";
-        const consumptionWidths = [14, 32, 36, 14, 20, 18, 18, 15, 15, 20];
-        consumptionWidths.forEach((width, i) => {
-            consumptionSheet.getColumn(i + 1).width = width;
-        });
-
-        for (let row = 2; row < consumptionRow; row++) {
-            consumptionSheet.getCell(row, 1).alignment = { horizontal: "center" };
-            consumptionSheet.getCell(row, 5).alignment = { horizontal: "center" };
-        }
+        /* Consumption sheet removed as requested. */
 
         const buffer =
             await workbook.xlsx.writeBuffer();
@@ -6615,7 +6523,7 @@ async function downloadExcel() {
         showStatus(
             statusElement,
             dates.length +
-            " day(s) exported successfully in Machine Feeder Details Excel format. Actual readings were kept only on their entered dates. No readings were copied into future dates.",
+            " day(s) exported successfully in Machine Feeder Details Excel format. Actual readings were kept only on their entered dates. No readings were copied into future dates. Consumption sheet was removed.",
             "success"
         );
 
