@@ -3826,24 +3826,23 @@ function renderEntryTable() {
 
                 if (meter && isRunHourMeter(meter)) {
                     input.addEventListener("input", function () {
-                        let value = String(this.value || "").replace(/[^0-9:]/g, "");
-                        const digits = value.replace(/:/g, "");
+                        /*
+                           Run-hour entry is deliberately NOT auto-formatted.
 
-                        /* Mobile-friendly run-hour entry:
-                           typing 6783250 automatically becomes 678:32:50. */
-                        if (!value.includes(":")) {
-                            if (digits.length > 4) {
-                                value = digits.slice(0, -4) + ":" + digits.slice(-4, -2) + ":" + digits.slice(-2);
-                            } else if (digits.length > 2) {
-                                value = digits.slice(0, -2) + ":" + digits.slice(-2);
-                            }
-                        } else {
-                            const parts = value.split(":");
-                            value = parts[0] + ":" + (parts[1] || "").slice(0,2);
-                            if (parts.length > 2) value += ":" + (parts[2] || "").slice(0,2);
-                        }
+                           The user may enter either:
+                             678
+                             678.5
+                             678:32:50
+                             1234:05:09
 
-                        this.value = value.slice(0, 30);
+                           Digits, decimal point and ':' are accepted exactly
+                           as typed. The ':' character is NEVER inserted
+                           automatically while typing.
+                        */
+                        this.value = String(this.value || "")
+                            .replace(/[^0-9:.]/g, "")
+                            .slice(0, 30);
+
                         calculateRowConsumption({ target: this });
                     });
                 } else {
