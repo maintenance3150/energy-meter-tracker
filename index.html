@@ -576,6 +576,18 @@ td.meter-name {
     font-weight: 600;
 }
 
+/* Remove increment/decrement spinner buttons from numeric reading inputs. */
+.reading-input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.reading-input[type="number"]::-webkit-outer-spin-button,
+.reading-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .reading-input:focus {
     border-color:
         var(--accent);
@@ -3852,6 +3864,35 @@ function renderEntryTable() {
                     );
                 }
 
+                /* Enter = move to the next reading field. */
+                input.addEventListener("keydown", function (event) {
+
+                    if (event.key !== "Enter")
+                        return;
+
+                    event.preventDefault();
+
+                    const inputs = Array.from(
+                        document.querySelectorAll(
+                            "#entryTableBody .today-reading"
+                        )
+                    );
+
+                    const currentIndex =
+                        inputs.indexOf(this);
+
+                    const nextInput =
+                        currentIndex >= 0
+                        ? inputs[currentIndex + 1]
+                        : null;
+
+                    if (nextInput) {
+                        nextInput.focus();
+                        nextInput.select();
+                    }
+
+                });
+
             }
         );
 
@@ -3915,22 +3956,13 @@ function calculateRowConsumption(
         isRunHourMeter(meter)
     ) {
 
-        const current =
-            timeToSeconds(
-                input.value
-            );
+        const currentText =
+            String(input.value || "").trim();
 
+        const previousText =
+            String(previousReading || "").trim();
 
-        const previous =
-            timeToSeconds(
-                previousReading
-            );
-
-
-        if (
-            current === null ||
-            previous === null
-        ) {
+        if (!currentText || !previousText) {
 
             cell.textContent = "-";
 
@@ -3938,12 +3970,65 @@ function calculateRowConsumption(
 
         }
 
+        let consumption;
+
+        /*
+           Run-hour consumption is always displayed as a NUMBER.
+
+           Numeric format (example 678 -> 679):
+               Consumption = Today - Previous
+
+           H...H:MM:SS format (example 678:32:50):
+               Convert both readings to seconds, subtract them,
+               then divide by 3600 to get decimal hours.
+
+           Mixed formats are also supported.
+        */
+        if (
+            !currentText.includes(":") &&
+            !previousText.includes(":")
+        ) {
+
+            const current = Number(currentText);
+            const previous = Number(previousText);
+
+            if (
+                !Number.isFinite(current) ||
+                !Number.isFinite(previous)
+            ) {
+
+                cell.textContent = "-";
+                return;
+
+            }
+
+            consumption = current - previous;
+
+        } else {
+
+            const currentSeconds =
+                timeToSeconds(currentText);
+
+            const previousSeconds =
+                timeToSeconds(previousText);
+
+            if (
+                currentSeconds === null ||
+                previousSeconds === null
+            ) {
+
+                cell.textContent = "-";
+                return;
+
+            }
+
+            consumption =
+                (currentSeconds - previousSeconds) / 3600;
+
+        }
 
         cell.textContent =
-            formatRunHour(
-                current - previous
-            );
-
+            formatNumber(consumption);
 
         return;
 
