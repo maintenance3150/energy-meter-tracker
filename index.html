@@ -1186,6 +1186,56 @@ button:disabled {
 }
 
 
+
+/* =========================================================
+   CONSUMPTION REPORT
+========================================================= */
+
+.consumption-controls {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.consumption-controls .search-field {
+    min-width: 190px;
+}
+
+.consumption-table-wrap {
+    overflow-x: auto;
+}
+
+.consumption-report-table {
+    min-width: 950px;
+}
+
+.consumption-report-table th,
+.consumption-report-table td {
+    white-space: nowrap;
+}
+
+.consumption-report-table td:nth-child(2) {
+    text-align: left;
+    font-weight: 600;
+}
+
+.consumption-value {
+    font-weight: 800;
+}
+
+.consumption-total-row td {
+    background: var(--primary-light);
+    font-weight: 800;
+}
+
+.consumption-note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
 /* =========================================================
    MOBILE
 ========================================================= */
@@ -1831,6 +1881,23 @@ input:focus, select:focus {
     .names-modal-footer span { max-width: 70%; }
 }
 
+
+
+@media(max-width:700px) {
+    .consumption-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .consumption-controls .search-field,
+    .consumption-controls button {
+        width: 100%;
+    }
+
+    .consumption-report-table {
+        min-width: 900px;
+    }
+}
 </style>
 </head>
 
@@ -1894,6 +1961,12 @@ input:focus, select:focus {
         class="tab-btn"
         onclick="showTab('savedTab',this)">
         📋 Saved Readings
+    </button>
+
+    <button
+        class="tab-btn"
+        onclick="showTab('consumptionTab',this)">
+        📊 Consumption
     </button>
 
     <button
@@ -2314,6 +2387,75 @@ input:focus, select:focus {
 <!-- =======================================================
      METER MASTER
 ======================================================== -->
+
+
+<!-- =======================================================
+     CONSUMPTION
+======================================================== -->
+
+<div id="consumptionTab" class="tab-content">
+
+<div class="page-heading">
+    <div>
+        <h2>Consumption</h2>
+        <p>View meter consumption between two selected dates.</p>
+    </div>
+</div>
+
+<div class="card">
+
+    <div class="consumption-controls">
+
+        <div class="search-field">
+            <label>FROM DATE</label>
+            <input type="date" id="consumptionFrom">
+        </div>
+
+        <div class="search-field">
+            <label>TO DATE</label>
+            <input type="date" id="consumptionTo">
+        </div>
+
+        <button class="btn-green" onclick="applyConsumption()">
+            Apply
+        </button>
+
+    </div>
+
+    <div id="consumptionStatus"></div>
+
+</div>
+
+<div class="card">
+
+    <div class="table-wrap consumption-table-wrap">
+        <table class="consumption-report-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Meter Name</th>
+                    <th>Unit</th>
+                    <th>From Reading</th>
+                    <th>To Reading</th>
+                    <th>MF</th>
+                    <th>Consumption</th>
+                </tr>
+            </thead>
+            <tbody id="consumptionTableBody">
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            Select From Date and To Date, then click Apply.
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+</div>
 
 <div id="masterTab" class="tab-content">
 
@@ -2948,6 +3090,325 @@ function showTab(
 
 }
 
+
+
+/* =========================================================
+   CONSUMPTION REPORT
+========================================================= */
+
+function normalizeDateOnly(value) {
+    return String(value || "").slice(0, 10);
+}
+
+function nearlyEqual(a, b) {
+    return Math.abs(Number(a) - Number(b)) < 0.000000001;
+}
+
+function calculateRunHourConsumption(fromText, toText) {
+
+    const fromHasColon = String(fromText || "").includes(":");
+    const toHasColon = String(toText || "").includes(":");
+
+    if (!fromHasColon && !toHasColon) {
+        const from = Number(fromText);
+        const to = Number(toText);
+        if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+        return to - from;
+    }
+
+    const fromSeconds = timeToSeconds(fromText);
+    const toSeconds = timeToSeconds(toText);
+
+    if (fromSeconds === null || toSeconds === null) return null;
+
+    return (toSeconds - fromSeconds) / 3600;
+}
+
+function calculateEnergyInterval(previousReading, previousMF, currentReading, currentMF) {
+
+    const previous = Number(previousReading);
+    const current = Number(currentReading);
+    const oldMF = Number(previousMF);
+    const newMF = Number(currentMF);
+
+    if (
+        !Number.isFinite(previous) ||
+        !Number.isFinite(current) ||
+        !Number.isFinite(oldMF) ||
+        !Number.isFinite(newMF) ||
+        oldMF <= 0 ||
+        newMF <= 0
+    ) {
+        return null;
+    }
+
+    /*
+       Normal case:
+           (Today - Previous) x MF
+
+       MF/unit change on the current reading date:
+           If the scale changes by 1000, convert the previous
+           reading to the new scale before applying the new MF.
+
+       Example requested:
+           (Today MWh - Previous kWh / 1000) x 1000
+    */
+    if (nearlyEqual(oldMF, newMF)) {
+        return (current - previous) * newMF;
+    }
+
+    let previousConverted = previous;
+
+    if (nearlyEqual(newMF / oldMF, 1000)) {
+        previousConverted = previous / 1000;
+    } else if (nearlyEqual(oldMF / newMF, 1000)) {
+        previousConverted = previous * 1000;
+    } else {
+        /* Fallback for another MF change: convert the previous
+           reading using the ratio of old/new MF so the stored
+           historical MF is still respected. */
+        previousConverted = previous * oldMF / newMF;
+    }
+
+    return (current - previousConverted) * newMF;
+}
+
+function calculateMeterRangeConsumption(meter, history, fromDate, toDate) {
+
+    if (!history || !history.length) return null;
+
+    const sorted = history
+        .slice()
+        .sort((a, b) => {
+            const d = normalizeDateOnly(a.reading_date)
+                .localeCompare(normalizeDateOnly(b.reading_date));
+            if (d !== 0) return d;
+            return String(a.created_at || "")
+                .localeCompare(String(b.created_at || ""));
+        });
+
+    /*
+       Start with the latest actual reading on or before From Date.
+       Then process every actual reading through To Date. This also
+       handles missed Sundays/holidays without inventing saved data.
+    */
+    let previous = null;
+
+    for (const r of sorted) {
+        const d = normalizeDateOnly(r.reading_date);
+        if (d <= fromDate) {
+            previous = r;
+        } else {
+            break;
+        }
+    }
+
+    if (!previous) return null;
+
+    let total = 0;
+    let intervalFound = false;
+
+    for (const current of sorted) {
+
+        const d = normalizeDateOnly(current.reading_date);
+
+        if (d <= fromDate) continue;
+        if (d > toDate) break;
+
+        let interval;
+
+        if (isRunHourMeter(meter)) {
+            interval = calculateRunHourConsumption(
+                previous.reading,
+                current.reading
+            );
+        } else {
+            interval = calculateEnergyInterval(
+                previous.reading,
+                previous.mf,
+                current.reading,
+                current.mf
+            );
+        }
+
+        if (interval === null || !Number.isFinite(interval)) {
+            previous = current;
+            continue;
+        }
+
+        total += interval;
+        intervalFound = true;
+        previous = current;
+    }
+
+    return intervalFound ? total : 0;
+}
+
+async function fetchReadingsInPages(fromDate, toDate, includeBeforeFrom = false) {
+
+    const all = [];
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (true) {
+
+        let query =
+            "?select=meter_id,reading_date,reading,mf,entered_by,created_at" +
+            "&reading_date=lte." + encodeURIComponent(toDate) +
+            "&order=reading_date.asc,created_at.asc" +
+            "&limit=" + pageSize +
+            "&offset=" + offset;
+
+        if (!includeBeforeFrom) {
+            query += "&reading_date=gte." + encodeURIComponent(fromDate);
+        }
+
+        const page = await supabaseRequest(
+            "readings",
+            "GET",
+            null,
+            query
+        );
+
+        if (!Array.isArray(page) || page.length === 0) break;
+
+        all.push(...page);
+
+        if (page.length < pageSize) break;
+
+        offset += pageSize;
+    }
+
+    return all;
+}
+
+
+async function applyConsumption() {
+
+    const from = document.getElementById("consumptionFrom").value;
+    const to = document.getElementById("consumptionTo").value;
+    const status = document.getElementById("consumptionStatus");
+    const tbody = document.getElementById("consumptionTableBody");
+
+    if (!from || !to) {
+        showStatus(status, "Please select both From Date and To Date.", "error");
+        return;
+    }
+
+    if (from > to) {
+        showStatus(status, "From Date cannot be later than To Date.", "error");
+        return;
+    }
+
+    tbody.innerHTML = `
+        <tr><td colspan="7">
+            <div class="loading-state">
+                <span class="loading-spinner"></span>
+                Calculating consumption...
+            </div>
+        </td></tr>`;
+
+    showStatus(status, "Loading readings...", "info");
+
+    try {
+
+        /* One extra day is not enough when From Date itself has no
+           reading, so fetch the complete meter history up to To Date. */
+        const readings = await fetchReadingsInPages(
+            from,
+            to,
+            true
+        );
+
+        const byMeter = {};
+
+        readings.forEach(r => {
+            if (!byMeter[r.meter_id]) byMeter[r.meter_id] = [];
+            byMeter[r.meter_id].push(r);
+        });
+
+        let html = "";
+        let meterCount = 0;
+        let totalEnergy = 0;
+        let totalRunHours = 0;
+        let energyCount = 0;
+        let runHourCount = 0;
+
+        for (const meter of sortMeters(meters)) {
+
+            const history = byMeter[meter.id] || [];
+            const firstOnOrBeforeFrom = history
+                .filter(r => normalizeDateOnly(r.reading_date) <= from)
+                .sort((a,b) => normalizeDateOnly(b.reading_date).localeCompare(normalizeDateOnly(a.reading_date)))[0];
+
+            const lastOnOrBeforeTo = history
+                .filter(r => normalizeDateOnly(r.reading_date) <= to)
+                .sort((a,b) => normalizeDateOnly(b.reading_date).localeCompare(normalizeDateOnly(a.reading_date)))[0];
+
+            if (!firstOnOrBeforeFrom || !lastOnOrBeforeTo ||
+                normalizeDateOnly(firstOnOrBeforeFrom.reading_date) === normalizeDateOnly(lastOnOrBeforeTo.reading_date)) {
+                continue;
+            }
+
+            const consumption = calculateMeterRangeConsumption(
+                meter,
+                history,
+                from,
+                to
+            );
+
+            if (consumption === null) continue;
+
+            meterCount++;
+
+            const runHour = isRunHourMeter(meter);
+            const unit = meter.unit || (runHour ? "HH:MM:SS" : "");
+
+            if (runHour) {
+                totalRunHours += consumption;
+                runHourCount++;
+            } else {
+                totalEnergy += consumption;
+                energyCount++;
+            }
+
+            html += `
+                <tr>
+                    <td>${escapeHtml(meter.category || "")}</td>
+                    <td>${escapeHtml(meter.name || "")}</td>
+                    <td>${escapeHtml(unit)}</td>
+                    <td>${escapeHtml(firstOnOrBeforeFrom.reading)}</td>
+                    <td>${escapeHtml(lastOnOrBeforeTo.reading)}</td>
+                    <td>${runHour ? "NA" : escapeHtml(Number(lastOnOrBeforeTo.mf ?? meter.mf ?? 0).toLocaleString("en-IN"))}</td>
+                    <td class="consumption-value">${formatNumber(consumption)}${runHour ? " h" : ""}</td>
+                </tr>`;
+        }
+
+        if (!html) {
+            html = `
+                <tr><td colspan="7">
+                    <div class="empty-state">No sufficient readings found for the selected date range.</div>
+                </td></tr>`;
+        }
+
+        tbody.innerHTML = html;
+
+        const note = meterCount
+            ? `${meterCount} meter(s) calculated. Energy: ${energyCount} meter(s); Run Hour: ${runHourCount} meter(s). Run-hour consumption is shown in decimal hours.`
+            : "No meter has sufficient readings for the selected range.";
+
+        showStatus(status, note, meterCount ? "success" : "info");
+
+    } catch (error) {
+
+        console.error("Consumption calculation error:", error);
+        tbody.innerHTML = `
+            <tr><td colspan="7">
+                <div class="empty-state">Unable to calculate consumption.</div>
+            </td></tr>`;
+        showStatus(status, "Consumption calculation failed: " + error.message, "error");
+    }
+}
 
 /* =========================================================
    NAMES
@@ -6283,20 +6744,17 @@ async function downloadExcel() {
              actual entered reading. This is a backward fill only.
            - Future dates after the last actual entry remain blank.
         */
-        const query =
-            "?select=meter_id,reading_date,reading,mf,entered_by" +
-            "&reading_date=gte." + encodeURIComponent(from) +
-            "&reading_date=lte." + encodeURIComponent(to) +
-            "&order=reading_date.asc" +
-            "&limit=10000";
-
-        const readings =
-            await supabaseRequest(
-                "readings",
-                "GET",
-                null,
-                query
-            );
+        /*
+           Fetch ALL saved readings in the selected range in 1,000-row pages.
+           Supabase/PostgREST can otherwise return only a limited number of
+           rows, which makes some dates disappear from the Excel export even
+           though those readings are visible in Saved Readings.
+        */
+        const readings = await fetchReadingsInPages(
+            from,
+            to,
+            false
+        );
 
         const readingsByMeter = {};
 
