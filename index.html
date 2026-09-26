@@ -2420,6 +2420,10 @@ input:focus, select:focus {
             Apply
         </button>
 
+        <button class="btn-green" onclick="downloadConsumptionExcel()">
+            ⬇ Download Excel
+        </button>
+
     </div>
 
     <div id="consumptionStatus"></div>
@@ -3409,6 +3413,248 @@ async function applyConsumption() {
         showStatus(status, "Consumption calculation failed: " + error.message, "error");
     }
 }
+
+/* =========================================================
+   CONSUMPTION EXCEL DOWNLOAD
+========================================================= */
+
+async function downloadConsumptionExcel() {
+
+    const from = document.getElementById("consumptionFrom").value;
+    const to = document.getElementById("consumptionTo").value;
+    const status = document.getElementById("consumptionStatus");
+
+    if (!from || !to) {
+        showStatus(status, "Please select both From Date and To Date.", "error");
+        return;
+    }
+
+    if (from > to) {
+        showStatus(status, "From Date cannot be later than To Date.", "error");
+        return;
+    }
+
+    try {
+
+        if (typeof ExcelJS === "undefined") {
+            throw new Error("Excel generator library could not be loaded. Please check your internet connection and try again.");
+        }
+
+        showStatus(status, "Preparing Consumption Excel file...", "info");
+
+        /*
+           Use the same complete history used by the Consumption screen.
+           This is important when the From Date itself has no reading.
+        */
+        const readings = await fetchReadingsInPages(from, to, true);
+        const byMeter = {};
+
+        readings.forEach(r => {
+            if (!byMeter[r.meter_id]) byMeter[r.meter_id] = [];
+            byMeter[r.meter_id].push(r);
+        });
+
+        const rows = [];
+        let totalEnergy = 0;
+        let totalRunHours = 0;
+        let energyCount = 0;
+        let runHourCount = 0;
+
+        for (const meter of sortMeters(meters)) {
+
+            const history = byMeter[meter.id] || [];
+
+            const firstOnOrBeforeFrom = history
+                .filter(r => normalizeDateOnly(r.reading_date) <= from)
+                .sort((a, b) => {
+                    const d = normalizeDateOnly(b.reading_date)
+                        .localeCompare(normalizeDateOnly(a.reading_date));
+                    if (d !== 0) return d;
+                    return String(b.created_at || "")
+                        .localeCompare(String(a.created_at || ""));
+                })[0];
+
+            const lastOnOrBeforeTo = history
+                .filter(r => normalizeDateOnly(r.reading_date) <= to)
+                .sort((a, b) => {
+                    const d = normalizeDateOnly(b.reading_date)
+                        .localeCompare(normalizeDateOnly(a.reading_date));
+                    if (d !== 0) return d;
+                    return String(b.created_at || "")
+                        .localeCompare(String(a.created_at || ""));
+                })[0];
+
+            if (!firstOnOrBeforeFrom || !lastOnOrBeforeTo ||
+                normalizeDateOnly(firstOnOrBeforeFrom.reading_date) === normalizeDateOnly(lastOnOrBeforeTo.reading_date)) {
+                continue;
+            }
+
+            const consumption = calculateMeterRangeConsumption(
+                meter,
+                history,
+                from,
+                to
+            );
+
+            if (consumption === null || !Number.isFinite(consumption)) continue;
+
+            const runHour = isRunHourMeter(meter);
+            const unit = meter.unit || (runHour ? "HH:MM:SS" : "");
+            const mf = runHour
+                ? "NA"
+                : Number(lastOnOrBeforeTo.mf ?? meter.mf ?? 0);
+
+            rows.push({
+                category: meter.category || "",
+                meter: meter.name || "",
+                unit,
+                fromReading: firstOnOrBeforeFrom.reading,
+                toReading: lastOnOrBeforeTo.reading,
+                mf,
+                consumption
+            });
+
+            if (runHour) {
+                totalRunHours += consumption;
+                runHourCount++;
+            } else {
+                totalEnergy += consumption;
+                energyCount++;
+            }
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = "Energy Meter & Run Hour Tracker";
+        workbook.created = new Date();
+
+        const worksheet = workbook.addWorksheet("Consumption");
+
+        worksheet.mergeCells("A1:G1");
+        worksheet.getCell("A1").value = "ENERGY METER & RUN HOUR CONSUMPTION";
+        worksheet.getCell("A1").font = { bold: true, size: 16 };
+        worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
+        worksheet.getRow(1).height = 26;
+
+        worksheet.mergeCells("A2:G2");
+        worksheet.getCell("A2").value =
+            "From Date: " + from.split("-").reverse().join("-") +
+            "    To Date: " + to.split("-").reverse().join("-");
+        worksheet.getCell("A2").font = { bold: true, size: 11 };
+        worksheet.getCell("A2").alignment = { horizontal: "center" };
+
+        const headerRow = worksheet.getRow(4);
+        const headers = [
+            "Category",
+            "Meter Name",
+            "Unit",
+            "From Reading",
+            "To Reading",
+            "MF",
+            "Consumption"
+        ];
+
+        headers.forEach((header, index) => {
+            const cell = headerRow.getCell(index + 1);
+            cell.value = header;
+            cell.font = { bold: true, size: 11 };
+            cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        });
+        headerRow.height = 24;
+
+        rows.forEach(row => {
+            const excelRow = worksheet.addRow([
+                row.category,
+                row.meter,
+                row.unit,
+                readingValueForExcel(row.fromReading),
+                readingValueForExcel(row.toReading),
+                row.mf,
+                row.consumption
+            ]);
+
+            excelRow.getCell(7).numFmt = "0.00";
+            if (typeof row.mf === "number") {
+                excelRow.getCell(6).numFmt = "#,##0.########";
+            }
+        });
+
+        if (!rows.length) {
+            const emptyRow = worksheet.addRow([
+                "No sufficient readings found for the selected date range.",
+                "", "", "", "", "", ""
+            ]);
+            worksheet.mergeCells(`A${emptyRow.number}:G${emptyRow.number}`);
+        }
+
+        const summaryStart = worksheet.rowCount + 2;
+        worksheet.getCell(`A${summaryStart}`).value = "Summary";
+        worksheet.getCell(`A${summaryStart}`).font = { bold: true, size: 12 };
+        worksheet.getCell(`A${summaryStart + 1}`).value = "Energy meters calculated";
+        worksheet.getCell(`B${summaryStart + 1}`).value = energyCount;
+        worksheet.getCell(`A${summaryStart + 2}`).value = "Total energy consumption";
+        worksheet.getCell(`B${summaryStart + 2}`).value = totalEnergy;
+        worksheet.getCell(`A${summaryStart + 3}`).value = "Run-hour meters calculated";
+        worksheet.getCell(`B${summaryStart + 3}`).value = runHourCount;
+        worksheet.getCell(`A${summaryStart + 4}`).value = "Total run-hour consumption (decimal hours)";
+        worksheet.getCell(`B${summaryStart + 4}`).value = totalRunHours;
+        worksheet.getCell(`B${summaryStart + 2}`).numFmt = "0.00";
+        worksheet.getCell(`B${summaryStart + 4}`).numFmt = "0.00";
+
+        worksheet.columns = [
+            { width: 34 },
+            { width: 36 },
+            { width: 14 },
+            { width: 18 },
+            { width: 18 },
+            { width: 16 },
+            { width: 18 }
+        ];
+
+        worksheet.views = [{ state: "frozen", ySplit: 4 }];
+        worksheet.autoFilter = {
+            from: "A4",
+            to: "G" + Math.max(4, 4 + rows.length)
+        };
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob(
+            [buffer],
+            { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
+        );
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download =
+            "Consumption_" +
+            from.replaceAll("-", "") +
+            "_to_" +
+            to.replaceAll("-", "") +
+            ".xlsx";
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        showStatus(
+            status,
+            rows.length + " meter(s) exported successfully to Consumption Excel.",
+            "success"
+        );
+
+    } catch (error) {
+
+        console.error("Consumption Excel download error:", error);
+        showStatus(
+            status,
+            "Consumption Excel download failed: " + error.message,
+            "error"
+        );
+    }
+}
+
 
 /* =========================================================
    NAMES
