@@ -979,6 +979,52 @@ button:disabled {
 
 
 /* =========================================================
+   SAVED READINGS - SEARCH / EXPORT
+========================================================= */
+
+.saved-search-panel {
+    display: flex;
+    gap: 10px;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.saved-search-panel .search-field {
+    min-width: 180px;
+}
+
+.saved-search-panel .saved-keyword-field {
+    flex: 1 1 280px;
+}
+
+.saved-search-panel input {
+    width: 100%;
+}
+
+.saved-result-note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+@media(max-width:700px) {
+    .saved-search-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .saved-search-panel .search-field,
+    .saved-search-panel button {
+        width: 100%;
+    }
+
+    .saved-search-panel .saved-keyword-field {
+        flex: none;
+    }
+}
+
+
+/* =========================================================
    DOWNLOAD
 ========================================================= */
 
@@ -2268,8 +2314,7 @@ input:focus, select:focus {
 
 <div class="card">
 
-<div class="search-panel">
-
+<div class="saved-search-panel">
 
     <div class="search-field">
 
@@ -2301,11 +2346,50 @@ input:focus, select:focus {
         class="btn"
         onclick="loadSavedReadings()">
 
-        🔍 Search Readings
+        Apply
 
     </button>
 
 
+    <div class="search-field saved-keyword-field">
+
+        <label>
+            SEARCH SAVED READING
+        </label>
+
+        <input
+            type="text"
+            id="savedKeyword"
+            placeholder="Meter name, category, reading or entered by"
+            onkeydown="if(event.key==='Enter') searchSavedReadings()">
+
+    </div>
+
+
+    <button
+        class="btn"
+        onclick="searchSavedReadings()">
+
+        🔍 Search
+
+    </button>
+
+
+    <button
+        class="btn-green"
+        id="downloadSavedBtn"
+        onclick="downloadSavedReadingsExcel()"
+        disabled>
+
+        ⬇ Download Excel
+
+    </button>
+
+
+</div>
+
+<div id="savedSearchNote" class="saved-result-note">
+    Select From Date and To Date, then click Apply.
 </div>
 
 </div>
@@ -5091,255 +5175,452 @@ async function saveReadings() {
    SAVED READINGS
 ========================================================= */
 
+/* Current Saved Readings result set.
+   Search and Excel export operate only on this date-filtered set. */
+let savedReadingsCache = [];
+let savedReadingsFiltered = [];
+
 async function loadSavedReadings() {
 
     const from =
-        document
-            .getElementById(
-                "savedFrom"
-            )
-            .value;
-
+        document.getElementById("savedFrom").value;
 
     const to =
-        document
-            .getElementById(
-                "savedTo"
-            )
-            .value;
-
-
-    let query =
-        "?select=id,meter_id,reading_date,reading,mf,entered_by" +
-        "&order=reading_date.desc";
-
-
-    if (from)
-        query +=
-            "&reading_date=gte." +
-            encodeURIComponent(
-                from
-            );
-
-
-    if (to)
-        query +=
-            "&reading_date=lte." +
-            encodeURIComponent(
-                to
-            );
-
+        document.getElementById("savedTo").value;
 
     const tbody =
-        document
-            .getElementById(
-                "savedTableBody"
-            );
+        document.getElementById("savedTableBody");
 
+    const note =
+        document.getElementById("savedSearchNote");
+
+    const downloadBtn =
+        document.getElementById("downloadSavedBtn");
+
+    if (!from || !to) {
+
+        showStatus(
+            note,
+            "Please select both From Date and To Date.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (from > to) {
+
+        showStatus(
+            note,
+            "From Date cannot be later than To Date.",
+            "error"
+        );
+
+        return;
+    }
 
     tbody.innerHTML = `
+        <tr>
+            <td colspan="7">
+                <div class="loading-state">
+                    <span class="loading-spinner"></span>
+                    Loading readings...
+                </div>
+            </td>
+        </tr>`;
 
-    <tr>
-
-        <td colspan="7">
-
-            <div class="loading-state">
-
-                <span class="loading-spinner"></span>
-
-                Loading readings...
-
-            </div>
-
-        </td>
-
-    </tr>
-
-    `;
-
+    downloadBtn.disabled = true;
+    savedReadingsCache = [];
+    savedReadingsFiltered = [];
 
     try {
 
-
+        /* Fetch all records in the selected period in pages so the
+           Saved Readings result is not cut off by Supabase row limits. */
         const readings =
-            await supabaseRequest(
-                "readings",
-                "GET",
-                null,
-                query
-            );
+            await fetchReadingsInPages(from, to, false);
 
+        readings.forEach(r => {
 
-        let html = "";
+            const meter =
+                meters.find(
+                    m => m.id === r.meter_id
+                );
 
+            if (!meter) return;
 
-        readings.forEach(
-            r => {
+            savedReadingsCache.push({
+                ...r,
+                meterName: meter.name || "",
+                category: meter.category || "",
+                unit: meter.unit || ""
+            });
 
+        });
 
-                const meter =
-                    meters.find(
-                        m =>
-                            m.id ===
-                            r.meter_id
-                    );
+        /* A fresh date Apply clears any previous keyword search. */
+        const keywordInput =
+            document.getElementById("savedKeyword");
 
+        if (keywordInput) keywordInput.value = "";
 
-                if (!meter)
-                    return;
+        savedReadingsFiltered =
+            [...savedReadingsCache];
 
+        renderSavedReadings();
 
-                html += `
+        downloadBtn.disabled =
+            savedReadingsFiltered.length === 0;
 
-                <tr>
+        if (savedReadingsCache.length) {
 
-                    <td>
-                        ${escapeHtml(
-                            r.reading_date
-                        )}
-                    </td>
+            note.className = "saved-result-note";
 
+            note.textContent =
+                savedReadingsCache.length +
+                " reading(s) found for " +
+                from +
+                " to " +
+                to +
+                ". You can now search within these results.";
 
-                    <td class="meter-name">
+        } else {
 
-                        ${escapeHtml(
-                            meter.name
-                        )}
+            note.className = "saved-result-note";
 
-                    </td>
+            note.textContent =
+                "No readings found for the selected period.";
 
-
-                    <td>
-
-                        ${escapeHtml(
-                            meter.category
-                        )}
-
-                    </td>
-
-
-                    <td>
-
-                        <strong>
-                            ${escapeHtml(
-                                r.reading
-                            )}
-                        </strong>
-
-                    </td>
-
-
-                    <td>
-
-                        ${
-                            r.mf == null
-                            ? "NA"
-                            : Number(
-                                r.mf
-                              ).toLocaleString()
-                        }
-
-                    </td>
-
-
-                    <td>
-
-                        ${escapeHtml(
-                            r.entered_by || ""
-                        )}
-
-                    </td>
-
-
-                    <td>
-
-                        <div class="actions">
-
-                            <button
-
-                                class="btn-small btn"
-
-                                onclick="editSavedReading(
-                                    '${escapeHtml(r.id)}'
-                                )">
-
-                                Edit
-
-                            </button>
-
-
-                            <button
-
-                                class="btn-small btn-red"
-
-                                onclick="deleteSavedReading(
-                                    '${escapeHtml(r.id)}'
-                                )">
-
-                                Delete
-
-                            </button>
-
-                        </div>
-
-                    </td>
-
-                </tr>
-
-                `;
-
-            }
-        );
-
-
-        tbody.innerHTML =
-            html ||
-
-            `
-
-            <tr>
-
-                <td colspan="7">
-
-                    <div class="empty-state">
-
-                        <div class="empty-icon">
-                            📋
-                        </div>
-
-                        No readings found for the selected period.
-
-                    </div>
-
-                </td>
-
-            </tr>
-
-            `;
-
+        }
 
     } catch(error) {
 
+        savedReadingsCache = [];
+        savedReadingsFiltered = [];
+        downloadBtn.disabled = true;
+
         tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    <div class="status error">
+                        Unable to load readings:
+                        ${escapeHtml(error.message)}
+                    </div>
+                </td>
+            </tr>`;
 
-        <tr>
+        note.className = "saved-result-note";
+        note.textContent = "Unable to load the selected readings.";
 
-            <td colspan="7">
+    }
 
-                <div class="status error">
+}
 
-                    Unable to load readings:
-                    ${escapeHtml(
-                        error.message
-                    )}
 
-                </div>
+function searchSavedReadings() {
 
-            </td>
+    const keyword =
+        document
+            .getElementById("savedKeyword")
+            .value
+            .trim()
+            .toLowerCase();
 
-        </tr>
+    const note =
+        document.getElementById("savedSearchNote");
 
-        `;
+    const downloadBtn =
+        document.getElementById("downloadSavedBtn");
+
+    if (!savedReadingsCache.length) {
+
+        note.className = "saved-result-note";
+        note.textContent =
+            "First select the date range and click Apply.";
+
+        return;
+    }
+
+    if (!keyword) {
+
+        savedReadingsFiltered =
+            [...savedReadingsCache];
+
+    } else {
+
+        savedReadingsFiltered =
+            savedReadingsCache.filter(r => {
+
+                const values = [
+                    r.reading_date,
+                    r.meterName,
+                    r.category,
+                    r.reading,
+                    r.mf == null ? "NA" : String(r.mf),
+                    r.entered_by || "",
+                    r.unit || ""
+                ];
+
+                return values.some(value =>
+                    String(value)
+                        .toLowerCase()
+                        .includes(keyword)
+                );
+
+            });
+
+    }
+
+    renderSavedReadings();
+
+    downloadBtn.disabled =
+        savedReadingsFiltered.length === 0;
+
+    note.className = "saved-result-note";
+
+    if (keyword) {
+
+        note.textContent =
+            savedReadingsFiltered.length +
+            " matching reading(s) found for \"" +
+            keyword +
+            "\".";
+
+    } else {
+
+        note.textContent =
+            savedReadingsFiltered.length +
+            " reading(s) shown.";
+
+    }
+
+}
+
+
+function renderSavedReadings() {
+
+    const tbody =
+        document.getElementById("savedTableBody");
+
+    if (!savedReadingsFiltered.length) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        No matching readings found.
+                    </div>
+                </td>
+            </tr>`;
+
+        return;
+    }
+
+    let html = "";
+
+    savedReadingsFiltered.forEach(r => {
+
+        html += `
+            <tr>
+
+                <td>
+                    ${escapeHtml(r.reading_date)}
+                </td>
+
+                <td class="meter-name">
+                    ${escapeHtml(r.meterName)}
+                </td>
+
+                <td>
+                    ${escapeHtml(r.category)}
+                </td>
+
+                <td>
+                    <strong>
+                        ${escapeHtml(r.reading)}
+                    </strong>
+                </td>
+
+                <td>
+                    ${
+                        r.mf == null
+                        ? "NA"
+                        : Number(r.mf).toLocaleString()
+                    }
+                </td>
+
+                <td>
+                    ${escapeHtml(r.entered_by || "")}
+                </td>
+
+                <td>
+                    <div class="actions">
+
+                        <button
+                            class="btn-small btn"
+                            onclick="editSavedReading('${escapeHtml(r.id)}')">
+                            Edit
+                        </button>
+
+                        <button
+                            class="btn-small btn-red"
+                            onclick="deleteSavedReading('${escapeHtml(r.id)}')">
+                            Delete
+                        </button>
+
+                    </div>
+                </td>
+
+            </tr>`;
+    });
+
+    tbody.innerHTML = html;
+
+}
+
+
+async function downloadSavedReadingsExcel() {
+
+    const rows = savedReadingsFiltered || [];
+
+    const status =
+        document.getElementById("savedSearchNote");
+
+    if (!rows.length) {
+
+        status.className = "saved-result-note";
+        status.textContent =
+            "There are no readings to download.";
+
+        return;
+    }
+
+    if (typeof ExcelJS === "undefined") {
+
+        status.className = "saved-result-note";
+        status.textContent =
+            "Excel generator library could not be loaded.";
+
+        return;
+    }
+
+    try {
+
+        const workbook =
+            new ExcelJS.Workbook();
+
+        const worksheet =
+            workbook.addWorksheet("Saved Readings");
+
+        worksheet.columns = [
+            { header: "Date", key: "date", width: 15 },
+            { header: "Meter Name", key: "meter", width: 38 },
+            { header: "Category", key: "category", width: 32 },
+            { header: "Unit", key: "unit", width: 15 },
+            { header: "Reading", key: "reading", width: 18 },
+            { header: "MF", key: "mf", width: 18 },
+            { header: "Entered By", key: "enteredBy", width: 25 }
+        ];
+
+        rows.forEach(r => {
+
+            worksheet.addRow({
+                date: r.reading_date || "",
+                meter: r.meterName || "",
+                category: r.category || "",
+                unit: r.unit || "",
+                reading: r.reading == null ? "" : r.reading,
+                mf: r.mf == null ? "NA" : r.mf,
+                enteredBy: r.entered_by || ""
+            });
+
+        });
+
+        const header =
+            worksheet.getRow(1);
+
+        header.font = {
+            bold: true,
+            color: { argb: "FFFFFFFF" }
+        };
+
+        header.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF7F1D2D" }
+        };
+
+        header.alignment = {
+            horizontal: "center",
+            vertical: "middle"
+        };
+
+        worksheet.views = [
+            { state: "frozen", ySplit: 1 }
+        ];
+
+        worksheet.autoFilter = {
+            from: "A1",
+            to: "G" + Math.max(1, rows.length + 1)
+        };
+
+        const from =
+            document.getElementById("savedFrom").value;
+
+        const to =
+            document.getElementById("savedTo").value;
+
+        const keyword =
+            document.getElementById("savedKeyword").value.trim();
+
+        const buffer =
+            await workbook.xlsx.writeBuffer();
+
+        const blob =
+            new Blob(
+                [buffer],
+                {
+                    type:
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                }
+            );
+
+        const url =
+            URL.createObjectURL(blob);
+
+        const a =
+            document.createElement("a");
+
+        a.href = url;
+
+        a.download =
+            "Saved_Readings_" +
+            from.replaceAll("-", "") +
+            "_to_" +
+            to.replaceAll("-", "") +
+            (keyword ? "_Search.xlsx" : ".xlsx");
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1000);
+
+        status.className = "saved-result-note";
+
+        status.textContent =
+            rows.length +
+            " reading(s) downloaded to Excel.";
+
+    } catch(error) {
+
+        status.className = "saved-result-note";
+        status.textContent =
+            "Excel download failed: " +
+            error.message;
 
     }
 
