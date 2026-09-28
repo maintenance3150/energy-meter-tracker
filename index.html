@@ -2360,19 +2360,11 @@ input:focus, select:focus {
         <input
             type="text"
             id="savedKeyword"
-            placeholder="Meter name, category, reading or entered by"
-            onkeydown="if(event.key==='Enter') searchSavedReadings()">
+            placeholder="Type to search meter, category, reading or entered by"
+            oninput="searchSavedReadings()"
+            autocomplete="off">
 
     </div>
-
-
-    <button
-        class="btn"
-        onclick="searchSavedReadings()">
-
-        🔍 Search
-
-    </button>
 
 
     <button
@@ -5282,7 +5274,7 @@ async function loadSavedReadings() {
                 from +
                 " to " +
                 to +
-                ". You can now search within these results.";
+                ". Type a keyword above to filter instantly.";
 
         } else {
 
