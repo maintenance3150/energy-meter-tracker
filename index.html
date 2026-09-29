@@ -1112,6 +1112,11 @@ button:disabled {
     padding: 15px;
 }
 
+/* Recovery must appear above the locked login screen. */
+#trackerRecoveryModal {
+    z-index: 100000;
+}
+
 .modal-box {
     background: white;
 
@@ -1312,7 +1317,16 @@ button:disabled {
     }
 
     .header-status {
-        display: none;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+    }
+
+    .tracker-security-btn {
+        margin-left: 0;
+        padding: 6px 8px;
+        font-size: 10px;
     }
 
     .header-icon {
@@ -1944,11 +1958,255 @@ input:focus, select:focus {
         min-width: 900px;
     }
 }
+
+/* =========================================================
+   TRACKER LOGIN / PASSWORD PROTECTION - OPTION 1
+========================================================= */
+
+body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(script):not(style) {
+    display: none !important;
+}
+
+#trackerLoginScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background:
+        radial-gradient(circle at top, rgba(180,35,50,.18), transparent 42%),
+        linear-gradient(135deg, #430c17 0%, #7f1d2d 55%, #f5f1f2 100%);
+}
+
+.tracker-login-card {
+    width: 100%;
+    max-width: 410px;
+    background: #fff;
+    border-radius: 18px;
+    padding: 30px 28px 26px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.28);
+    border: 1px solid #eadde0;
+    text-align: center;
+}
+
+.tracker-login-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 14px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: #fff;
+    background: linear-gradient(135deg, #7f1d2d, #b42332);
+    box-shadow: 0 8px 20px rgba(127,29,45,.24);
+}
+
+.tracker-login-card h2 {
+    margin: 0;
+    color: #6f1727;
+    font-size: 22px;
+}
+
+.tracker-login-card p {
+    margin: 7px 0 20px;
+    color: #6b5b60;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.tracker-login-field {
+    text-align: left;
+    margin-bottom: 12px;
+}
+
+.tracker-login-field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #536273;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tracker-password-wrap {
+    position: relative;
+}
+
+.tracker-password-wrap input {
+    width: 100%;
+    padding-right: 72px;
+}
+
+.tracker-show-password {
+    position: absolute;
+    right: 6px;
+    top: 5px;
+    height: calc(100% - 10px);
+    border: 0;
+    background: transparent;
+    color: #7f1d2d;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 8px;
+}
+
+.tracker-login-btn {
+    width: 100%;
+    margin-top: 4px;
+    padding: 11px 14px;
+    border: 0;
+    border-radius: 8px;
+    color: #fff;
+    background: linear-gradient(135deg, #7f1d2d, #b42332);
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(127,29,45,.20);
+}
+
+.tracker-login-btn:hover {
+    transform: translateY(-1px);
+}
+
+.tracker-forgot-btn {
+    margin-top: 13px;
+    border: 0;
+    background: transparent;
+    color: #7f1d2d;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tracker-login-message {
+    min-height: 18px;
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.tracker-login-message.error {
+    color: #8f1729;
+}
+
+.tracker-login-message.success {
+    color: #166534;
+}
+
+.tracker-login-note {
+    margin-top: 18px;
+    padding-top: 13px;
+    border-top: 1px solid #eee0e3;
+    color: #8a7a80;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.tracker-security-btn {
+    border: 1px solid rgba(255,255,255,.28);
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    border-radius: 7px;
+    padding: 7px 10px;
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tracker-security-btn:hover {
+    background: rgba(255,255,255,.20);
+}
+
+@media(max-width:700px) {
+    #trackerLoginScreen {
+        padding: 14px;
+    }
+
+    .tracker-login-card {
+        padding: 25px 20px 22px;
+        border-radius: 15px;
+    }
+
+    .tracker-login-icon {
+        width: 56px;
+        height: 56px;
+        font-size: 28px;
+    }
+
+    .tracker-login-card h2 {
+        font-size: 19px;
+    }
+}
+
 </style>
 </head>
 
 
-<body>
+<body class="auth-locked">
+
+
+<!-- =======================================================
+     TRACKER PASSWORD SCREEN - OPTION 1
+======================================================== -->
+<div id="trackerLoginScreen">
+    <div class="tracker-login-card">
+
+        <div class="tracker-login-icon">🔐</div>
+
+        <h2>Energy Meter Tracker</h2>
+
+        <p>
+            Password is required to access the tracker.
+        </p>
+
+        <div class="tracker-login-field">
+            <label for="trackerLoginPassword">PASSWORD</label>
+
+            <div class="tracker-password-wrap">
+                <input
+                    type="password"
+                    id="trackerLoginPassword"
+                    autocomplete="current-password"
+                    placeholder="Enter password"
+                    onkeydown="if(event.key==='Enter') trackerLogin()">
+
+                <button
+                    type="button"
+                    class="tracker-show-password"
+                    onclick="toggleTrackerLoginPassword()">
+                    Show
+                </button>
+            </div>
+        </div>
+
+        <button
+            type="button"
+            class="tracker-login-btn"
+            onclick="trackerLogin()">
+            🔓 LOGIN
+        </button>
+
+        <button
+            type="button"
+            class="tracker-forgot-btn"
+            onclick="openTrackerRecovery()">
+            Forgot Password?
+        </button>
+
+        <div id="trackerLoginMessage" class="tracker-login-message"></div>
+
+        <div class="tracker-login-note">
+            Keep your recovery code in a safe place. It is required
+            if the tracker password is forgotten.
+        </div>
+
+    </div>
+</div>
+
 
 
 <!-- =======================================================
@@ -1981,6 +2239,12 @@ input:focus, select:focus {
 
     <div class="header-status">
         ● System Ready
+        <button
+            type="button"
+            class="tracker-security-btn"
+            onclick="openTrackerPasswordChange()">
+            🔐 Change Password
+        </button>
     </div>
 
 </div>
@@ -2960,6 +3224,119 @@ input:focus, select:focus {
 </div>
 
 
+
+<!-- =======================================================
+     TRACKER PASSWORD CHANGE / RECOVERY MODALS
+======================================================== -->
+
+<div
+    id="trackerPasswordModal"
+    class="modal">
+
+    <div class="modal-box">
+
+        <h3>🔐 Change Tracker Password</h3>
+
+        <div class="form-row">
+            <label>Current Password</label>
+            <input
+                type="password"
+                id="trackerCurrentPassword"
+                autocomplete="current-password">
+        </div>
+
+        <div class="form-row">
+            <label>New Password</label>
+            <input
+                type="password"
+                id="trackerNewPassword"
+                autocomplete="new-password">
+        </div>
+
+        <div class="form-row">
+            <label>Confirm New Password</label>
+            <input
+                type="password"
+                id="trackerConfirmPassword"
+                autocomplete="new-password">
+        </div>
+
+        <div id="trackerChangeMessage"></div>
+
+        <div style="display:flex;gap:7px;justify-content:flex-end;margin-top:14px;">
+            <button
+                class="btn-green"
+                onclick="changeTrackerPassword()">
+                Save Password
+            </button>
+
+            <button
+                class="btn-gray"
+                onclick="closeModal('trackerPasswordModal')">
+                Close
+            </button>
+        </div>
+
+    </div>
+</div>
+
+
+<div
+    id="trackerRecoveryModal"
+    class="modal">
+
+    <div class="modal-box">
+
+        <h3>🔑 Password Recovery</h3>
+
+        <p style="font-size:12px;color:#6b5b60;line-height:1.5;">
+            Enter your recovery code to create a new tracker password.
+        </p>
+
+        <div class="form-row">
+            <label>Recovery Code</label>
+            <input
+                type="password"
+                id="trackerRecoveryCode"
+                autocomplete="off">
+        </div>
+
+        <div class="form-row">
+            <label>New Password</label>
+            <input
+                type="password"
+                id="trackerRecoveryNewPassword"
+                autocomplete="new-password">
+        </div>
+
+        <div class="form-row">
+            <label>Confirm New Password</label>
+            <input
+                type="password"
+                id="trackerRecoveryConfirmPassword"
+                autocomplete="new-password">
+        </div>
+
+        <div id="trackerRecoveryMessage"></div>
+
+        <div style="display:flex;gap:7px;justify-content:flex-end;margin-top:14px;">
+            <button
+                class="btn-green"
+                onclick="resetTrackerPassword()">
+                Reset Password
+            </button>
+
+            <button
+                class="btn-gray"
+                onclick="closeModal('trackerRecoveryModal')">
+                Close
+            </button>
+        </div>
+
+    </div>
+</div>
+
+
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <script>
@@ -2976,6 +3353,493 @@ const SUPABASE_KEY =
 
 const ADMIN_PASSWORD =
     "admin123";
+
+
+/* =========================================================
+   TRACKER PASSWORD PROTECTION - OPTION 1
+   IMPORTANT:
+   This is browser-side protection only. It is not server-side
+   authentication. The password/recovery code are stored as
+   SHA-256 hashes, and the current password is saved in the
+   browser's localStorage after it is changed.
+========================================================= */
+
+const TRACKER_PASSWORD_KEY =
+    "energyMeterTrackerPasswordHash_v1";
+
+const TRACKER_DEFAULT_PASSWORD_HASH =
+    "4c685140ccb4a49e25133c6b310489530dca7dd82a24c170b4ec739655231f2d";
+
+const TRACKER_RECOVERY_CODE_HASH =
+    "1cac892132bda6227f61d550379f8807f65ee7770b02c27f1d579a004ca3b4f0";
+
+
+async function trackerHash(value) {
+
+    const data =
+        new TextEncoder().encode(
+            String(value || "")
+        );
+
+    const buffer =
+        await crypto.subtle.digest(
+            "SHA-256",
+            data
+        );
+
+    return Array.from(
+        new Uint8Array(buffer)
+    )
+        .map(
+            b => b.toString(16).padStart(2, "0")
+        )
+        .join("");
+
+}
+
+
+function getTrackerPasswordHash() {
+
+    return (
+        localStorage.getItem(
+            TRACKER_PASSWORD_KEY
+        ) ||
+        TRACKER_DEFAULT_PASSWORD_HASH
+    );
+
+}
+
+
+function setTrackerPasswordHash(hash) {
+
+    localStorage.setItem(
+        TRACKER_PASSWORD_KEY,
+        hash
+    );
+
+}
+
+
+function setTrackerLoginMessage(
+    message,
+    type = ""
+) {
+
+    const el =
+        document.getElementById(
+            "trackerLoginMessage"
+        );
+
+    if (!el) return;
+
+    el.className =
+        "tracker-login-message " +
+        type;
+
+    el.textContent =
+        message || "";
+
+}
+
+
+async function trackerLogin() {
+
+    const input =
+        document.getElementById(
+            "trackerLoginPassword"
+        );
+
+    const password =
+        String(
+            input?.value || ""
+        );
+
+    if (!password) {
+
+        setTrackerLoginMessage(
+            "Please enter the password.",
+            "error"
+        );
+
+        input?.focus();
+
+        return;
+
+    }
+
+    try {
+
+        const hash =
+            await trackerHash(password);
+
+        if (
+            hash !==
+            getTrackerPasswordHash()
+        ) {
+
+            setTrackerLoginMessage(
+                "Incorrect password.",
+                "error"
+            );
+
+            if (input) {
+                input.value = "";
+                input.focus();
+            }
+
+            return;
+
+        }
+
+        setTrackerLoginMessage(
+            "Login successful.",
+            "success"
+        );
+
+        document.body.classList.remove(
+            "auth-locked"
+        );
+
+        const loginScreen =
+            document.getElementById(
+                "trackerLoginScreen"
+            );
+
+        if (loginScreen) {
+            loginScreen.style.display =
+                "none";
+        }
+
+        input.value = "";
+
+        /* Start the existing tracker only after login. */
+        init();
+
+    } catch (error) {
+
+        console.error(
+            "Tracker login error:",
+            error
+        );
+
+        setTrackerLoginMessage(
+            "Unable to process login. Please try again.",
+            "error"
+        );
+
+    }
+
+}
+
+
+function toggleTrackerLoginPassword() {
+
+    const input =
+        document.getElementById(
+            "trackerLoginPassword"
+        );
+
+    const button =
+        document.querySelector(
+            ".tracker-show-password"
+        );
+
+    if (!input) return;
+
+    if (input.type === "password") {
+
+        input.type = "text";
+
+        if (button)
+            button.textContent = "Hide";
+
+    } else {
+
+        input.type = "password";
+
+        if (button)
+            button.textContent = "Show";
+
+    }
+
+}
+
+
+function openTrackerPasswordChange() {
+
+    document.getElementById(
+        "trackerCurrentPassword"
+    ).value = "";
+
+    document.getElementById(
+        "trackerNewPassword"
+    ).value = "";
+
+    document.getElementById(
+        "trackerConfirmPassword"
+    ).value = "";
+
+    document.getElementById(
+        "trackerChangeMessage"
+    ).innerHTML = "";
+
+    document.getElementById(
+        "trackerPasswordModal"
+    ).style.display = "flex";
+
+}
+
+
+function trackerChangeMessage(
+    message,
+    type
+) {
+
+    const el =
+        document.getElementById(
+            "trackerChangeMessage"
+        );
+
+    el.innerHTML =
+        '<div class="status ' +
+        type +
+        '">' +
+        escapeHtml(message) +
+        '</div>';
+
+}
+
+
+async function changeTrackerPassword() {
+
+    const current =
+        document.getElementById(
+            "trackerCurrentPassword"
+        ).value;
+
+    const next =
+        document.getElementById(
+            "trackerNewPassword"
+        ).value;
+
+    const confirmPassword =
+        document.getElementById(
+            "trackerConfirmPassword"
+        ).value;
+
+    if (!current || !next || !confirmPassword) {
+
+        trackerChangeMessage(
+            "Please fill all password fields.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (next.length < 6) {
+
+        trackerChangeMessage(
+            "New password must contain at least 6 characters.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (next !== confirmPassword) {
+
+        trackerChangeMessage(
+            "New password and confirmation do not match.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const currentHash =
+        await trackerHash(current);
+
+    if (
+        currentHash !==
+        getTrackerPasswordHash()
+    ) {
+
+        trackerChangeMessage(
+            "Current password is incorrect.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const newHash =
+        await trackerHash(next);
+
+    setTrackerPasswordHash(
+        newHash
+    );
+
+    trackerChangeMessage(
+        "Password changed successfully.",
+        "success"
+    );
+
+    setTimeout(
+        () => closeModal(
+            "trackerPasswordModal"
+        ),
+        900
+    );
+
+}
+
+
+function openTrackerRecovery() {
+
+    document.getElementById(
+        "trackerRecoveryCode"
+    ).value = "";
+
+    document.getElementById(
+        "trackerRecoveryNewPassword"
+    ).value = "";
+
+    document.getElementById(
+        "trackerRecoveryConfirmPassword"
+    ).value = "";
+
+    document.getElementById(
+        "trackerRecoveryMessage"
+    ).innerHTML = "";
+
+    document.getElementById(
+        "trackerRecoveryModal"
+    ).style.display = "flex";
+
+}
+
+
+function trackerRecoveryMessage(
+    message,
+    type
+) {
+
+    const el =
+        document.getElementById(
+            "trackerRecoveryMessage"
+        );
+
+    el.innerHTML =
+        '<div class="status ' +
+        type +
+        '">' +
+        escapeHtml(message) +
+        '</div>';
+
+}
+
+
+async function resetTrackerPassword() {
+
+    const recoveryCode =
+        document.getElementById(
+            "trackerRecoveryCode"
+        ).value.trim();
+
+    const next =
+        document.getElementById(
+            "trackerRecoveryNewPassword"
+        ).value;
+
+    const confirmPassword =
+        document.getElementById(
+            "trackerRecoveryConfirmPassword"
+        ).value;
+
+    if (!recoveryCode || !next || !confirmPassword) {
+
+        trackerRecoveryMessage(
+            "Please fill all recovery fields.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (next.length < 6) {
+
+        trackerRecoveryMessage(
+            "New password must contain at least 6 characters.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    if (next !== confirmPassword) {
+
+        trackerRecoveryMessage(
+            "New password and confirmation do not match.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const recoveryHash =
+        await trackerHash(
+            recoveryCode
+        );
+
+    if (
+        recoveryHash !==
+        TRACKER_RECOVERY_CODE_HASH
+    ) {
+
+        trackerRecoveryMessage(
+            "Incorrect recovery code.",
+            "error"
+        );
+
+        return;
+
+    }
+
+    const newHash =
+        await trackerHash(next);
+
+    setTrackerPasswordHash(
+        newHash
+    );
+
+    closeModal(
+        "trackerRecoveryModal"
+    );
+
+    setTrackerLoginMessage(
+        "Password reset successfully. Enter your new password.",
+        "success"
+    );
+
+    const loginInput =
+        document.getElementById(
+            "trackerLoginPassword"
+        );
+
+    if (loginInput) {
+        loginInput.value = "";
+        loginInput.focus();
+    }
+
+}
 
 
 /* =========================================================
@@ -7965,7 +8829,11 @@ function escapeHtml(
    START
 ========================================================= */
 
-init();
+/*
+ * The tracker deliberately does NOT call init() here.
+ * init() is started only after the main tracker password
+ * has been verified successfully.
+ */
 
 </script>
 
