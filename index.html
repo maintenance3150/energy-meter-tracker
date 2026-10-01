@@ -3356,22 +3356,16 @@ const ADMIN_PASSWORD =
 
 
 /* =========================================================
-   TRACKER PASSWORD PROTECTION - OPTION 1
-   IMPORTANT:
-   This is browser-side protection only. It is not server-side
-   authentication. The password/recovery code are stored as
-   SHA-256 hashes, and the current password is saved in the
-   browser's localStorage after it is changed.
+   TRACKER PASSWORD PROTECTION - SERVER-SIDE (SUPABASE)
+   The password is stored in Supabase (table tracker_auth) and
+   checked by database functions, so PC and mobile always use the
+   same password. Nothing about the password is kept in the browser.
 ========================================================= */
 
-const TRACKER_PASSWORD_KEY =
-    "energyMeterTrackerPasswordHash_v1";
-
-const TRACKER_DEFAULT_PASSWORD_HASH =
-    "4c685140ccb4a49e25133c6b310489530dca7dd82a24c170b4ec739655231f2d";
-
-const TRACKER_RECOVERY_CODE_HASH =
-    "1cac892132bda6227f61d550379f8807f65ee7770b02c27f1d579a004ca3b4f0";
+/* Remove the old per-browser password saved by the earlier version. */
+try {
+    localStorage.removeItem("energyMeterTrackerPasswordHash_v1");
+} catch (e) {}
 
 
 async function trackerHash(value) {
@@ -3398,26 +3392,19 @@ async function trackerHash(value) {
 }
 
 
-function getTrackerPasswordHash() {
+function trackerRpc(name, args) {
 
-    return (
-        localStorage.getItem(
-            TRACKER_PASSWORD_KEY
-        ) ||
-        TRACKER_DEFAULT_PASSWORD_HASH
+    return supabaseRequest(
+        "rpc/" + name,
+        "POST",
+        args
     );
 
 }
 
 
-function setTrackerPasswordHash(hash) {
-
-    localStorage.setItem(
-        TRACKER_PASSWORD_KEY,
-        hash
-    );
-
-}
+const TRACKER_SERVER_ERROR =
+    "Unable to reach the server. Check your internet connection and try again.";
 
 
 function setTrackerLoginMessage(
@@ -3449,6 +3436,11 @@ async function trackerLogin() {
             "trackerLoginPassword"
         );
 
+    const button =
+        document.querySelector(
+            ".tracker-login-btn"
+        );
+
     const password =
         String(
             input?.value || ""
@@ -3469,13 +3461,23 @@ async function trackerLogin() {
 
     try {
 
-        const hash =
-            await trackerHash(password);
+        if (button) button.disabled = true;
 
-        if (
-            hash !==
-            getTrackerPasswordHash()
-        ) {
+        setTrackerLoginMessage(
+            "Checking...",
+            ""
+        );
+
+        const ok =
+            await trackerRpc(
+                "tracker_check_password",
+                {
+                    p_hash:
+                        await trackerHash(password)
+                }
+            );
+
+        if (ok !== true) {
 
             setTrackerLoginMessage(
                 "Incorrect password.",
@@ -3523,9 +3525,13 @@ async function trackerLogin() {
         );
 
         setTrackerLoginMessage(
-            "Unable to process login. Please try again.",
+            TRACKER_SERVER_ERROR,
             "error"
         );
+
+    } finally {
+
+        if (button) button.disabled = false;
 
     }
 
@@ -3660,41 +3666,55 @@ async function changeTrackerPassword() {
 
     }
 
-    const currentHash =
-        await trackerHash(current);
+    try {
 
-    if (
-        currentHash !==
-        getTrackerPasswordHash()
-    ) {
+        const ok =
+            await trackerRpc(
+                "tracker_change_password",
+                {
+                    p_old:
+                        await trackerHash(current),
+                    p_new:
+                        await trackerHash(next)
+                }
+            );
+
+        if (ok !== true) {
+
+            trackerChangeMessage(
+                "Current password is incorrect.",
+                "error"
+            );
+
+            return;
+
+        }
 
         trackerChangeMessage(
-            "Current password is incorrect.",
+            "Password changed successfully. It now applies on all devices.",
+            "success"
+        );
+
+        setTimeout(
+            () => closeModal(
+                "trackerPasswordModal"
+            ),
+            1200
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Change password error:",
+            error
+        );
+
+        trackerChangeMessage(
+            TRACKER_SERVER_ERROR,
             "error"
         );
 
-        return;
-
     }
-
-    const newHash =
-        await trackerHash(next);
-
-    setTrackerPasswordHash(
-        newHash
-    );
-
-    trackerChangeMessage(
-        "Password changed successfully.",
-        "success"
-    );
-
-    setTimeout(
-        () => closeModal(
-            "trackerPasswordModal"
-        ),
-        900
-    );
 
 }
 
@@ -3794,55 +3814,64 @@ async function resetTrackerPassword() {
 
     }
 
-    const recoveryHash =
-        await trackerHash(
-            recoveryCode
+    try {
+
+        const ok =
+            await trackerRpc(
+                "tracker_reset_password",
+                {
+                    p_recovery:
+                        await trackerHash(recoveryCode),
+                    p_new:
+                        await trackerHash(next)
+                }
+            );
+
+        if (ok !== true) {
+
+            trackerRecoveryMessage(
+                "Incorrect recovery code.",
+                "error"
+            );
+
+            return;
+
+        }
+
+        closeModal(
+            "trackerRecoveryModal"
         );
 
-    if (
-        recoveryHash !==
-        TRACKER_RECOVERY_CODE_HASH
-    ) {
+        setTrackerLoginMessage(
+            "Password reset successfully. Enter your new password.",
+            "success"
+        );
+
+        const loginInput =
+            document.getElementById(
+                "trackerLoginPassword"
+            );
+
+        if (loginInput) {
+            loginInput.value = "";
+            loginInput.focus();
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Reset password error:",
+            error
+        );
 
         trackerRecoveryMessage(
-            "Incorrect recovery code.",
+            TRACKER_SERVER_ERROR,
             "error"
         );
 
-        return;
-
     }
 
-    const newHash =
-        await trackerHash(next);
-
-    setTrackerPasswordHash(
-        newHash
-    );
-
-    closeModal(
-        "trackerRecoveryModal"
-    );
-
-    setTrackerLoginMessage(
-        "Password reset successfully. Enter your new password.",
-        "success"
-    );
-
-    const loginInput =
-        document.getElementById(
-            "trackerLoginPassword"
-        );
-
-    if (loginInput) {
-        loginInput.value = "";
-        loginInput.focus();
-    }
-
-}
-
-
-/* =========================================================
+}/* =========================================================
    GLOBAL VARIABLES
 ========================================================= */
 
