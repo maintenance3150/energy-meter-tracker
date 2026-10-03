@@ -3398,7 +3398,64 @@ async function trackerHash(value) {
 }
 
 
-function getTrackerPasswordHash() {
+/* =========================================================
+   SHARED PASSWORD (stored in Supabase table app_settings so the
+   same password works on PC, mobile and every other browser).
+   localStorage is kept only as an offline fallback / cache.
+========================================================= */
+
+const TRACKER_SETTING_KEY = "tracker_password_hash";
+
+let trackerPasswordIsShared = false;
+
+
+/* Returns the hash saved in Supabase, null if none saved yet,
+   and throws if the table cannot be read. */
+async function fetchSharedPasswordHash() {
+
+    const rows =
+        await supabaseRequest(
+            "app_settings",
+            "GET",
+            null,
+            "?select=value&key=eq." + TRACKER_SETTING_KEY
+        );
+
+    return rows && rows.length
+        ? rows[0].value
+        : null;
+
+}
+
+
+async function saveSharedPasswordHash(hash) {
+
+    const existing =
+        await fetchSharedPasswordHash();
+
+    if (existing === null) {
+
+        await supabaseRequest(
+            "app_settings",
+            "POST",
+            { key: TRACKER_SETTING_KEY, value: hash }
+        );
+
+    } else {
+
+        await supabaseRequest(
+            "app_settings",
+            "PATCH",
+            { value: hash },
+            "?key=eq." + TRACKER_SETTING_KEY
+        );
+
+    }
+
+}
+
+
+function getLocalPasswordHash() {
 
     return (
         localStorage.getItem(
@@ -3410,7 +3467,50 @@ function getTrackerPasswordHash() {
 }
 
 
-function setTrackerPasswordHash(hash) {
+/* The password every device must use. */
+async function getTrackerPasswordHash() {
+
+    try {
+
+        const shared =
+            await fetchSharedPasswordHash();
+
+        trackerPasswordIsShared = true;
+
+        if (shared) {
+
+            localStorage.setItem(
+                TRACKER_PASSWORD_KEY,
+                shared
+            );
+
+            return shared;
+
+        }
+
+        /* Nothing saved online yet: use this device's password. */
+        return getLocalPasswordHash();
+
+    } catch (error) {
+
+        console.error(
+            "Shared password unavailable:",
+            error
+        );
+
+        trackerPasswordIsShared = false;
+
+        return getLocalPasswordHash();
+
+    }
+
+}
+
+
+/* Saves the new password for ALL devices. Throws if it cannot. */
+async function setTrackerPasswordHash(hash) {
+
+    await saveSharedPasswordHash(hash);
 
     localStorage.setItem(
         TRACKER_PASSWORD_KEY,
@@ -3472,9 +3572,12 @@ async function trackerLogin() {
         const hash =
             await trackerHash(password);
 
+        const savedHash =
+            await getTrackerPasswordHash();
+
         if (
             hash !==
-            getTrackerPasswordHash()
+            savedHash
         ) {
 
             setTrackerLoginMessage(
@@ -3511,6 +3614,16 @@ async function trackerLogin() {
         }
 
         input.value = "";
+
+        /* First login after this update: publish this device's password
+           so other devices use the same one. Silent if table missing. */
+        if (trackerPasswordIsShared) {
+            fetchSharedPasswordHash()
+                .then(v => v === null
+                    ? saveSharedPasswordHash(hash)
+                    : null)
+                .catch(e => console.error(e));
+        }
 
         /* Start the existing tracker only after login. */
         init();
@@ -3665,7 +3778,7 @@ async function changeTrackerPassword() {
 
     if (
         currentHash !==
-        getTrackerPasswordHash()
+        await getTrackerPasswordHash()
     ) {
 
         trackerChangeMessage(
@@ -3680,12 +3793,29 @@ async function changeTrackerPassword() {
     const newHash =
         await trackerHash(next);
 
-    setTrackerPasswordHash(
-        newHash
-    );
+    try {
+
+        await setTrackerPasswordHash(
+            newHash
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        trackerChangeMessage(
+            "Password NOT changed: could not save it online for all devices. " +
+            "Create the app_settings table in Supabase first. " +
+            error.message,
+            "error"
+        );
+
+        return;
+
+    }
 
     trackerChangeMessage(
-        "Password changed successfully.",
+        "Password changed successfully on all devices.",
         "success"
     );
 
@@ -3816,9 +3946,26 @@ async function resetTrackerPassword() {
     const newHash =
         await trackerHash(next);
 
-    setTrackerPasswordHash(
-        newHash
-    );
+    try {
+
+        await setTrackerPasswordHash(
+            newHash
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        trackerRecoveryMessage(
+            "Password NOT reset: could not save it online for all devices. " +
+            "Create the app_settings table in Supabase first. " +
+            error.message,
+            "error"
+        );
+
+        return;
+
+    }
 
     closeModal(
         "trackerRecoveryModal"
