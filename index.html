@@ -3356,16 +3356,22 @@ const ADMIN_PASSWORD =
 
 
 /* =========================================================
-   TRACKER PASSWORD PROTECTION - SERVER-SIDE (SUPABASE)
-   The password is stored in Supabase (table tracker_auth) and
-   checked by database functions, so PC and mobile always use the
-   same password. Nothing about the password is kept in the browser.
+   TRACKER PASSWORD PROTECTION - OPTION 1
+   IMPORTANT:
+   This is browser-side protection only. It is not server-side
+   authentication. The password/recovery code are stored as
+   SHA-256 hashes, and the current password is saved in the
+   browser's localStorage after it is changed.
 ========================================================= */
 
-/* Remove the old per-browser password saved by the earlier version. */
-try {
-    localStorage.removeItem("energyMeterTrackerPasswordHash_v1");
-} catch (e) {}
+const TRACKER_PASSWORD_KEY =
+    "energyMeterTrackerPasswordHash_v1";
+
+const TRACKER_DEFAULT_PASSWORD_HASH =
+    "4c685140ccb4a49e25133c6b310489530dca7dd82a24c170b4ec739655231f2d";
+
+const TRACKER_RECOVERY_CODE_HASH =
+    "1cac892132bda6227f61d550379f8807f65ee7770b02c27f1d579a004ca3b4f0";
 
 
 async function trackerHash(value) {
@@ -3392,19 +3398,26 @@ async function trackerHash(value) {
 }
 
 
-function trackerRpc(name, args) {
+function getTrackerPasswordHash() {
 
-    return supabaseRequest(
-        "rpc/" + name,
-        "POST",
-        args
+    return (
+        localStorage.getItem(
+            TRACKER_PASSWORD_KEY
+        ) ||
+        TRACKER_DEFAULT_PASSWORD_HASH
     );
 
 }
 
 
-const TRACKER_SERVER_ERROR =
-    "Unable to reach the server. Check your internet connection and try again.";
+function setTrackerPasswordHash(hash) {
+
+    localStorage.setItem(
+        TRACKER_PASSWORD_KEY,
+        hash
+    );
+
+}
 
 
 function setTrackerLoginMessage(
@@ -3436,11 +3449,6 @@ async function trackerLogin() {
             "trackerLoginPassword"
         );
 
-    const button =
-        document.querySelector(
-            ".tracker-login-btn"
-        );
-
     const password =
         String(
             input?.value || ""
@@ -3461,23 +3469,13 @@ async function trackerLogin() {
 
     try {
 
-        if (button) button.disabled = true;
+        const hash =
+            await trackerHash(password);
 
-        setTrackerLoginMessage(
-            "Checking...",
-            ""
-        );
-
-        const ok =
-            await trackerRpc(
-                "tracker_check_password",
-                {
-                    p_hash:
-                        await trackerHash(password)
-                }
-            );
-
-        if (ok !== true) {
+        if (
+            hash !==
+            getTrackerPasswordHash()
+        ) {
 
             setTrackerLoginMessage(
                 "Incorrect password.",
@@ -3525,13 +3523,9 @@ async function trackerLogin() {
         );
 
         setTrackerLoginMessage(
-            TRACKER_SERVER_ERROR,
+            "Unable to process login. Please try again.",
             "error"
         );
-
-    } finally {
-
-        if (button) button.disabled = false;
 
     }
 
@@ -3666,55 +3660,41 @@ async function changeTrackerPassword() {
 
     }
 
-    try {
+    const currentHash =
+        await trackerHash(current);
 
-        const ok =
-            await trackerRpc(
-                "tracker_change_password",
-                {
-                    p_old:
-                        await trackerHash(current),
-                    p_new:
-                        await trackerHash(next)
-                }
-            );
-
-        if (ok !== true) {
-
-            trackerChangeMessage(
-                "Current password is incorrect.",
-                "error"
-            );
-
-            return;
-
-        }
+    if (
+        currentHash !==
+        getTrackerPasswordHash()
+    ) {
 
         trackerChangeMessage(
-            "Password changed successfully. It now applies on all devices.",
-            "success"
-        );
-
-        setTimeout(
-            () => closeModal(
-                "trackerPasswordModal"
-            ),
-            1200
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Change password error:",
-            error
-        );
-
-        trackerChangeMessage(
-            TRACKER_SERVER_ERROR,
+            "Current password is incorrect.",
             "error"
         );
 
+        return;
+
     }
+
+    const newHash =
+        await trackerHash(next);
+
+    setTrackerPasswordHash(
+        newHash
+    );
+
+    trackerChangeMessage(
+        "Password changed successfully.",
+        "success"
+    );
+
+    setTimeout(
+        () => closeModal(
+            "trackerPasswordModal"
+        ),
+        900
+    );
 
 }
 
@@ -3814,68 +3794,60 @@ async function resetTrackerPassword() {
 
     }
 
-    try {
-
-        const ok =
-            await trackerRpc(
-                "tracker_reset_password",
-                {
-                    p_recovery:
-                        await trackerHash(recoveryCode),
-                    p_new:
-                        await trackerHash(next)
-                }
-            );
-
-        if (ok !== true) {
-
-            trackerRecoveryMessage(
-                "Incorrect recovery code.",
-                "error"
-            );
-
-            return;
-
-        }
-
-        closeModal(
-            "trackerRecoveryModal"
+    const recoveryHash =
+        await trackerHash(
+            recoveryCode
         );
 
-        setTrackerLoginMessage(
-            "Password reset successfully. Enter your new password.",
-            "success"
-        );
-
-        const loginInput =
-            document.getElementById(
-                "trackerLoginPassword"
-            );
-
-        if (loginInput) {
-            loginInput.value = "";
-            loginInput.focus();
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Reset password error:",
-            error
-        );
+    if (
+        recoveryHash !==
+        TRACKER_RECOVERY_CODE_HASH
+    ) {
 
         trackerRecoveryMessage(
-            TRACKER_SERVER_ERROR,
+            "Incorrect recovery code.",
             "error"
         );
 
+        return;
+
     }
 
-}/* =========================================================
+    const newHash =
+        await trackerHash(next);
+
+    setTrackerPasswordHash(
+        newHash
+    );
+
+    closeModal(
+        "trackerRecoveryModal"
+    );
+
+    setTrackerLoginMessage(
+        "Password reset successfully. Enter your new password.",
+        "success"
+    );
+
+    const loginInput =
+        document.getElementById(
+            "trackerLoginPassword"
+        );
+
+    if (loginInput) {
+        loginInput.value = "";
+        loginInput.focus();
+    }
+
+}
+
+
+/* =========================================================
    GLOBAL VARIABLES
 ========================================================= */
 
-let meters = [];
+let meters = [];      /* ACTIVE meters: entry screen and Meter Master */
+let allMeters = [];   /* active + deleted meters: saved readings, consumption, download */
 
 let names = [];
 
@@ -3978,13 +3950,16 @@ async function init() {
                 "GET",
                 null,
                 "?select=id,name,category,unit,mf,active,display_order" +
-                "&active=eq.true" +
                 "&order=display_order.asc,name.asc"
             );
 
 
+        allMeters = meters;
+
         meters =
-            sortMeters(meters);
+            sortMeters(
+                allMeters.filter(m => m.active !== false)
+            );
 
 
         names =
@@ -4042,6 +4017,36 @@ function sortMeters(list) {
         }
     );
 
+}
+
+
+/* Active meters first (Master order), deleted meters after them in the
+   same category, so their readings stay visible for the period they
+   were in use. */
+function sortMetersWithDeleted(list) {
+
+    const order = [
+        "Power Control Center (PCC) panel",
+        "DG KWH",
+        "Water Base - MCC panels",
+        "Solvent Base - MCC panels"
+    ];
+
+    return [...list].sort((a, b) => {
+        const ca = order.indexOf(a.category);
+        const cb = order.indexOf(b.category);
+        if (ca !== cb) return ca - cb;
+
+        const ia = a.active === false ? 1 : 0;
+        const ib = b.active === false ? 1 : 0;
+        if (ia !== ib) return ia - ib;
+
+        const ao = a.display_order == null ? 999999 : Number(a.display_order);
+        const bo = b.display_order == null ? 999999 : Number(b.display_order);
+        if (ao !== bo) return ao - bo;
+
+        return String(a.name).localeCompare(String(b.name));
+    });
 }
 
 
@@ -4193,6 +4198,14 @@ function calculateMeterRangeConsumption(meter, history, fromDate, toDate) {
         }
     }
 
+    /* New meter: start from its first reading inside the range. */
+    if (!previous) {
+        previous = sorted.find(r => {
+            const d = normalizeDateOnly(r.reading_date);
+            return d > fromDate && d <= toDate;
+        }) || null;
+    }
+
     if (!previous) return null;
 
     let total = 0;
@@ -4204,6 +4217,7 @@ function calculateMeterRangeConsumption(meter, history, fromDate, toDate) {
 
         if (d <= fromDate) continue;
         if (d > toDate) break;
+        if (current === previous) continue;
 
         let interval;
 
@@ -4464,7 +4478,7 @@ async function applyConsumption() {
         let energyCount = 0;
         let runHourCount = 0;
 
-        for (const meter of sortMeters(meters)) {
+        for (const meter of sortMetersWithDeleted(allMeters)) {
 
             const history = byMeter[meter.id] || [];
 
@@ -4482,8 +4496,20 @@ async function applyConsumption() {
                         .localeCompare(normalizeDateOnly(a.reading_date))
                 )[0];
 
-            if (!firstOnOrBeforeFrom || !lastOnOrBeforeTo ||
-                normalizeDateOnly(firstOnOrBeforeFrom.reading_date) ===
+            /* Newly added meters may have no reading on/before From Date.
+               Use their first reading inside the range as the start. */
+            const startReading = firstOnOrBeforeFrom || history
+                .filter(r => {
+                    const d = normalizeDateOnly(r.reading_date);
+                    return d > from && d <= to;
+                })
+                .sort((a,b) =>
+                    normalizeDateOnly(a.reading_date)
+                        .localeCompare(normalizeDateOnly(b.reading_date))
+                )[0];
+
+            if (!startReading || !lastOnOrBeforeTo ||
+                normalizeDateOnly(startReading.reading_date) ===
                 normalizeDateOnly(lastOnOrBeforeTo.reading_date)) {
                 continue;
             }
@@ -4512,7 +4538,7 @@ async function applyConsumption() {
                 category: meter.category || "",
                 meter: meter.name || "",
                 unit: unit,
-                fromReading: firstOnOrBeforeFrom.reading,
+                fromReading: startReading.reading,
                 toReading: lastOnOrBeforeTo.reading,
                 mf: mf,
                 consumption: consumption,
@@ -6377,7 +6403,7 @@ async function loadSavedReadings() {
         readings.forEach(r => {
 
             const meter =
-                meters.find(
+                allMeters.find(
                     m => m.id === r.meter_id
                 );
 
@@ -6794,7 +6820,7 @@ async function editSavedReading(
 
 
         const meter =
-            meters.find(
+            allMeters.find(
                 m =>
                     m.id ===
                     r.meter_id
@@ -7072,6 +7098,13 @@ function checkMasterPassword() {
 
     renderMeterMaster();
 
+    renumberMeterOrders([
+        "Power Control Center (PCC) panel",
+        "DG KWH",
+        "Water Base - MCC panels",
+        "Solvent Base - MCC panels"
+    ]).then(renderMeterMaster).catch(e => console.error("Renumber failed:", e));
+
 }
 
 
@@ -7241,7 +7274,7 @@ function renderMeterMaster() {
 
                         <td class="master-order">
 
-                            ${meter.display_order}
+                            ${index + 1}
 
                         </td>
 
@@ -7403,6 +7436,45 @@ function closeMaster() {
         )
         .innerHTML = "";
 
+}
+
+
+/* =========================================================
+   RENUMBER METERS (keeps serial numbers 1,2,3... continuous
+   inside each category after add / delete / category change)
+========================================================= */
+
+async function renumberMeterOrders(categoryList) {
+
+    for (const cat of categoryList) {
+
+        const list = meters
+            .filter(m => m.category === cat)
+            .sort((a, b) => {
+                const ao = a.display_order == null ? 999999 : Number(a.display_order);
+                const bo = b.display_order == null ? 999999 : Number(b.display_order);
+                return (ao - bo) || String(a.name).localeCompare(String(b.name));
+            });
+
+        for (let i = 0; i < list.length; i++) {
+
+            const wanted = i + 1;
+
+            if (Number(list[i].display_order) !== wanted) {
+
+                await supabaseRequest(
+                    "meters",
+                    "PATCH",
+                    { display_order: wanted },
+                    "?id=eq." + encodeURIComponent(list[i].id)
+                );
+
+                list[i].display_order = wanted;
+            }
+        }
+    }
+
+    meters = sortMeters(meters);
 }
 
 
@@ -7731,11 +7803,18 @@ async function addNewMeter() {
             result[0]
         );
 
+        allMeters.push(
+            result[0]
+        );
+
 
         meters =
             sortMeters(
                 meters
             );
+
+
+        await renumberMeterOrders([categories[category]]);
 
 
         renderMeterMaster();
@@ -8019,6 +8098,13 @@ async function saveMeter() {
             );
 
 
+        await renumberMeterOrders(
+            oldCategory !== category
+                ? [oldCategory, category]
+                : [category]
+        );
+
+
         closeModal(
             "meterModal"
         );
@@ -8096,6 +8182,9 @@ async function deleteMeter(
             sortMeters(
                 meters
             );
+
+
+        await renumberMeterOrders([meter.category]);
 
 
         renderMeterMaster();
@@ -8448,7 +8537,7 @@ async function downloadExcel() {
         */
         const dailyValues = {};
 
-        meters.forEach(meter => {
+        allMeters.forEach(meter => {
 
             const history =
                 (readingsByMeter[meter.id] || [])
@@ -8544,20 +8633,25 @@ async function downloadExcel() {
 
         worksheet.getColumn(1).width = 32.8164;
 
-        /* Copy sample row heights. */
-        for (let row = 1; row <= templateWorksheet.rowCount; row++) {
-            worksheet.getRow(row).height = templateWorksheet.getRow(row).height;
-        }
+        /*
+           Rows are now built from the live Meter Master (active meters,
+           in their display order) instead of the fixed rows of the sample
+           workbook. Added meters appear, removed meters disappear, and the
+           sample is used only for fonts, borders and colours.
+        */
+        const sourceColFor = colIndex =>
+            colIndex <= templateWorksheet.columnCount ? colIndex : 2;
 
-        /* Copy the sample cell styles and labels, but not its old values. */
-        for (let row = 1; row <= templateWorksheet.rowCount; row++) {
-            for (let col = 1; col <= Math.min(templateWorksheet.columnCount, dates.length + 1); col++) {
-                const sourceCell = templateWorksheet.getCell(row, col);
-                const targetCell = worksheet.getCell(row, col);
+        const copyRowStyle = (templateRow, targetRow) => {
+            worksheet.getRow(targetRow).height =
+                templateWorksheet.getRow(templateRow).height;
 
-                if (sourceCell.style) {
-                    targetCell.style = JSON.parse(JSON.stringify(sourceCell.style));
-                }
+            for (let col = 1; col <= dates.length + 1; col++) {
+                const sourceCell =
+                    templateWorksheet.getCell(templateRow, sourceColFor(col));
+                const targetCell = worksheet.getCell(targetRow, col);
+
+                if (sourceCell.style) targetCell.style = JSON.parse(JSON.stringify(sourceCell.style));
                 if (sourceCell.numFmt) targetCell.numFmt = sourceCell.numFmt;
                 if (sourceCell.alignment) targetCell.alignment = JSON.parse(JSON.stringify(sourceCell.alignment));
                 if (sourceCell.border) targetCell.border = JSON.parse(JSON.stringify(sourceCell.border));
@@ -8565,113 +8659,74 @@ async function downloadExcel() {
                 if (sourceCell.font) targetCell.font = JSON.parse(JSON.stringify(sourceCell.font));
                 if (sourceCell.protection) targetCell.protection = JSON.parse(JSON.stringify(sourceCell.protection));
             }
-        }
-
-        /*
-           For dates beyond the sample's B:K range, clone the B-column CELL
-           styles.  ExcelJS Column objects do not reliably expose getCell()
-           in all browser builds, which caused:
-             sourceDateColumn.getCell is not a function
-           Use worksheet.getCell(row, 2) instead.
-        */
-        const sourceDateColumn = templateWorksheet.getColumn(2);
-        const sourceDateColumnWidth = sourceDateColumn && sourceDateColumn.width
-            ? sourceDateColumn.width
-            : 14;
+        };
 
         for (let colIndex = 2; colIndex <= dates.length + 1; colIndex++) {
-            const targetColumn = worksheet.getColumn(colIndex);
-            targetColumn.width = sourceDateColumnWidth;
-
-            if (colIndex > templateWorksheet.columnCount) {
-                for (let row = 1; row <= templateWorksheet.rowCount; row++) {
-                    const sourceCell = templateWorksheet.getCell(row, 2);
-                    const targetCell = worksheet.getCell(row, colIndex);
-
-                    if (sourceCell.style) targetCell.style = JSON.parse(JSON.stringify(sourceCell.style));
-                    if (sourceCell.numFmt) targetCell.numFmt = sourceCell.numFmt;
-                    if (sourceCell.alignment) targetCell.alignment = JSON.parse(JSON.stringify(sourceCell.alignment));
-                    if (sourceCell.border) targetCell.border = JSON.parse(JSON.stringify(sourceCell.border));
-                    if (sourceCell.fill) targetCell.fill = JSON.parse(JSON.stringify(sourceCell.fill));
-                    if (sourceCell.font) targetCell.font = JSON.parse(JSON.stringify(sourceCell.font));
-                    if (sourceCell.protection) targetCell.protection = JSON.parse(JSON.stringify(sourceCell.protection));
-                }
-            }
+            worksheet.getColumn(colIndex).width =
+                (templateWorksheet.getColumn(2) && templateWorksheet.getColumn(2).width) || 14;
         }
 
-        /* Put the sample equipment/section labels into column A. */
-        for (let row = 1; row <= templateWorksheet.rowCount; row++) {
-            worksheet.getCell(row, 1).value = templateWorksheet.getCell(row, 1).value;
-        }
-
-        /* Header */
+        /* Header row */
+        copyRowStyle(1, 1);
         worksheet.getCell(1, 1).value = "Equipment";
         dates.forEach((date, index) => {
             const cell = worksheet.getCell(1, index + 2);
-
-            /*
-               Keep the top/header date as an explicit date string.
-               This guarantees the selected export dates are visibly shown
-               in the Excel header and avoids any timezone conversion.
-            */
             const parts = String(date || "").split("-");
             cell.value =
                 parts.length === 3
                     ? `${parts[2]}-${parts[1]}-${parts[0]}`
                     : String(date || "");
-
             cell.font = { ...cell.font, bold: true, size: 12 };
             cell.alignment = { horizontal: "center", vertical: "center" };
         });
 
-        /* Keep the four section rows blank under their headers. */
-        Object.values(sectionRows).forEach(row => {
+        /* Template row used for the style of each section's meter rows. */
+        const meterStyleRows = {
+            "Power Control Center (PCC) panel": 3,
+            "DG KWH": 19,
+            "Water Base - MCC panels": 22,
+            "Solvent Base - MCC panels": 47
+        };
+
+        let outRow = 2;
+
+        for (const category of Object.keys(sectionRows)) {
+
+            /* Section header row */
+            copyRowStyle(sectionRows[category], outRow);
+            worksheet.getCell(outRow, 1).value = category;
             for (let col = 2; col <= dates.length + 1; col++) {
-                worksheet.getCell(row, col).value = null;
+                worksheet.getCell(outRow, col).value = null;
             }
-        });
+            outRow++;
 
-        /* Map the sample's equipment rows to the corresponding app meters. */
-        for (let row = 2; row <= templateWorksheet.rowCount; row++) {
-            const label = templateWorksheet.getCell(row, 1).value;
-            if (!label || sectionRows[label]) continue;
-
-            let category = null;
-            if (row >= 3 && row <= 17) {
-                category = "Power Control Center (PCC) panel";
-            } else if (row >= 19 && row <= 20) {
-                category = "DG KWH";
-            } else if (row >= 22 && row <= 45) {
-                category = "Water Base - MCC panels";
-            } else if (row >= 47 && row <= 71) {
-                category = "Solvent Base - MCC panels";
-            }
-            if (!category) continue;
-
-            const normalizeExcelEquipmentName = value =>
-                String(value || "")
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, "");
-
-            const excelNameAliases = {
-                "thinnercirculationpump": "Thinner circulation pump RUN HOUR"
-            };
-
-            const wantedName =
-                excelNameAliases[normalizeExcelEquipmentName(label)] ||
-                String(label);
-
-            const meter = meters.find(m =>
-                m.category === category &&
-                (m.name === wantedName ||
-                 normalizeExcelEquipmentName(m.name) === normalizeExcelEquipmentName(wantedName))
+            /* Meter rows, in Meter Master order */
+            /* Active meters always; deleted meters only if they have at
+               least one reading in the selected dates. */
+            const categoryMeters = sortMetersWithDeleted(
+                allMeters.filter(m =>
+                    m.category === category &&
+                    (
+                        m.active !== false ||
+                        dates.some(d =>
+                            (dailyValues[m.id] || {})[d] !== null &&
+                            (dailyValues[m.id] || {})[d] !== undefined
+                        )
+                    )
+                )
             );
 
-            if (!meter) continue;
+            for (const meter of categoryMeters) {
+                copyRowStyle(meterStyleRows[category], outRow);
+                worksheet.getCell(outRow, 1).value = meter.name;
 
-            for (let i = 0; i < dates.length; i++) {
-                worksheet.getCell(row, i + 2).value =
-                    readingValueForExcel(dailyValues[meter.id][dates[i]]);
+                for (let i = 0; i < dates.length; i++) {
+                    worksheet.getCell(outRow, i + 2).value =
+                        readingValueForExcel(
+                            (dailyValues[meter.id] || {})[dates[i]]
+                        );
+                }
+                outRow++;
             }
         }
 
