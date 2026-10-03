@@ -2199,6 +2199,11 @@ body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(scri
 
         <div id="trackerLoginMessage" class="tracker-login-message"></div>
 
+        <div id="trackerSyncStatus"
+             style="margin-top:10px;font-size:11px;text-align:center;color:#6c757d;">
+            Checking shared password...
+        </div>
+
         <div class="tracker-login-note">
             Keep your recovery code in a safe place. It is required
             if the tracker password is forgotten.
@@ -3407,6 +3412,8 @@ async function trackerHash(value) {
 const TRACKER_SETTING_KEY = "tracker_password_hash";
 
 let trackerPasswordIsShared = false;
+let trackerSyncError = "";
+const TRACKER_BUILD = "build 3 - shared password";
 
 
 /* Returns the hash saved in Supabase, null if none saved yet,
@@ -3467,6 +3474,38 @@ function getLocalPasswordHash() {
 }
 
 
+/* Shows on the login screen whether the shared password works. */
+async function showTrackerSyncStatus() {
+
+    const el = document.getElementById("trackerSyncStatus");
+    if (!el) return;
+
+    await getTrackerPasswordHash();
+
+    if (trackerPasswordIsShared) {
+
+        let saved = null;
+        try { saved = await fetchSharedPasswordHash(); } catch (e) {}
+
+        el.style.color = "#198754";
+        el.textContent = TRACKER_BUILD + " | Shared password: connected" +
+            (saved ? "" : " (no password saved online yet - log in once to publish it)");
+
+    } else {
+
+        el.style.color = "#dc3545";
+        el.textContent = TRACKER_BUILD + " | Shared password: NOT connected. " +
+            "Using this device only. Reason: " + trackerSyncError;
+
+    }
+
+}
+
+window.addEventListener("load", () => {
+    setTimeout(showTrackerSyncStatus, 300);
+});
+
+
 /* The password every device must use. */
 async function getTrackerPasswordHash() {
 
@@ -3499,6 +3538,7 @@ async function getTrackerPasswordHash() {
         );
 
         trackerPasswordIsShared = false;
+        trackerSyncError = String(error && error.message || error);
 
         return getLocalPasswordHash();
 
