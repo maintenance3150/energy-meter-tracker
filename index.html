@@ -2691,6 +2691,10 @@ body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(scri
     </th>
 
     <th>
+        Saved At
+    </th>
+
+    <th>
         Action
     </th>
 
@@ -2702,7 +2706,7 @@ body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(scri
 
 <tr>
 
-    <td colspan="7">
+    <td colspan="8">
 
         <div class="empty-state">
 
@@ -4207,6 +4211,23 @@ function sortMeters(list) {
 }
 
 
+/* "dd-mm-yyyy hh:mm" in the viewer's local time. */
+function formatSavedAt(value) {
+
+    if (!value) return "";
+
+    const d = new Date(value);
+
+    if (isNaN(d.getTime())) return "";
+
+    const p = n => String(n).padStart(2, "0");
+
+    return p(d.getDate()) + "-" + p(d.getMonth() + 1) + "-" +
+        d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+
+}
+
+
 /* Active meters first (Master order), deleted meters after them in the
    same category, so their readings stay visible for the period they
    were in use. */
@@ -4444,7 +4465,7 @@ async function fetchReadingsInPages(fromDate, toDate, includeBeforeFrom = false)
     while (true) {
 
         let query =
-            "?select=meter_id,reading_date,reading,mf,entered_by,created_at" +
+            "?select=id,meter_id,reading_date,reading,mf,entered_by,created_at,updated_at" +
             "&reading_date=lte." + encodeURIComponent(toDate) +
             "&order=reading_date.asc,created_at.asc" +
             "&limit=" + pageSize +
@@ -6417,6 +6438,11 @@ async function saveReadings() {
     try {
 
 
+        /* One save time for the whole click of "Save Readings". */
+        const savedAt =
+            new Date().toISOString();
+
+
         for (
             const record of records
         ) {
@@ -6464,8 +6490,7 @@ async function saveReadings() {
                             record.entered_by,
 
                         updated_at:
-                            new Date()
-                            .toISOString()
+                            savedAt
                     },
 
                     "?id=eq." +
@@ -6481,7 +6506,7 @@ async function saveReadings() {
                 await supabaseRequest(
                     "readings",
                     "POST",
-                    record
+                    { ...record, updated_at: savedAt }
                 );
 
             }
@@ -6568,7 +6593,7 @@ async function loadSavedReadings() {
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="7">
+            <td colspan="8">
                 <div class="loading-state">
                     <span class="loading-spinner"></span>
                     Loading readings...
@@ -6705,6 +6730,7 @@ function searchSavedReadings() {
                     r.reading,
                     r.mf == null ? "NA" : String(r.mf),
                     r.entered_by || "",
+                    formatSavedAt(r.updated_at || r.created_at),
                     r.unit || ""
                 ];
 
@@ -6753,7 +6779,7 @@ function renderSavedReadings() {
 
         tbody.innerHTML = `
             <tr>
-                <td colspan="7">
+                <td colspan="8">
                     <div class="empty-state">
                         <div class="empty-icon">📋</div>
                         No matching readings found.
@@ -6799,6 +6825,10 @@ function renderSavedReadings() {
 
                 <td>
                     ${escapeHtml(r.entered_by || "")}
+                </td>
+
+                <td style="white-space:nowrap;">
+                    ${escapeHtml(formatSavedAt(r.updated_at || r.created_at))}
                 </td>
 
                 <td>
@@ -6867,7 +6897,8 @@ async function downloadSavedReadingsExcel() {
             { header: "Unit", key: "unit", width: 15 },
             { header: "Reading", key: "reading", width: 18 },
             { header: "MF", key: "mf", width: 18 },
-            { header: "Entered By", key: "enteredBy", width: 25 }
+            { header: "Entered By", key: "enteredBy", width: 25 },
+            { header: "Saved At", key: "savedAt", width: 20 }
         ];
 
         rows.forEach(r => {
@@ -6879,7 +6910,8 @@ async function downloadSavedReadingsExcel() {
                 unit: r.unit || "",
                 reading: r.reading == null ? "" : r.reading,
                 mf: r.mf == null ? "NA" : r.mf,
-                enteredBy: r.entered_by || ""
+                enteredBy: r.entered_by || "",
+                savedAt: formatSavedAt(r.updated_at || r.created_at)
             });
 
         });
@@ -6909,7 +6941,7 @@ async function downloadSavedReadingsExcel() {
 
         worksheet.autoFilter = {
             from: "A1",
-            to: "G" + Math.max(1, rows.length + 1)
+            to: "H" + Math.max(1, rows.length + 1)
         };
 
         const from =
