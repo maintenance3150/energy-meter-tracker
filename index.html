@@ -588,6 +588,35 @@ td.meter-name {
     margin: 0;
 }
 
+.entry-banner {
+    margin: 0 0 12px 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 600;
+}
+
+.entry-banner.warn {
+    background: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffda6a;
+}
+
+.entry-banner.draft {
+    background: #e7f1ff;
+    color: #084298;
+    border: 1px solid #9ec5fe;
+}
+
+.reading-input.has-saved {
+    background: #fff9e0;
+}
+
+.reading-input.has-draft {
+    background: #e9f3ff;
+}
+
 .reading-input:focus {
     border-color:
         var(--accent);
@@ -2323,6 +2352,9 @@ body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(scri
 </div>
 
 
+<div id="entryDateWarning"></div>
+<div id="entryDraftNotice"></div>
+
 <!-- CONTROLS -->
 
 <div class="card">
@@ -2339,7 +2371,7 @@ body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(scri
             <input
                 type="date"
                 id="entryDate"
-                onchange="loadEntryData()">
+                onchange="warningSuppressDate = null; loadEntryData()">
 
         </div>
 
@@ -4165,6 +4197,20 @@ async function init() {
         renderNames();
 
 
+        /* Reopen the latest date that still has an unsaved draft. */
+        const draftDates =
+            Object.keys(loadDrafts())
+                .filter(d => Object.keys(loadDrafts()[d].values || {}).length)
+                .sort();
+
+        const dateInput = document.getElementById("entryDate");
+
+        if (draftDates.length && dateInput && !dateInput.value) {
+            dateInput.value = draftDates[draftDates.length - 1];
+            loadEntryData();
+        }
+
+
     } catch(error) {
 
         alert(
@@ -4266,6 +4312,8 @@ function showTab(
     tabId,
     button
 ) {
+
+    flushEntryDraft();
 
     document
         .querySelectorAll(".tab-content")
@@ -5616,6 +5664,288 @@ async function loadPreviousReadings(
 
 
 /* =========================================================
+   EXISTING READINGS ON THE SELECTED DATE + AUTO-SAVED DRAFTS
+========================================================= */
+
+let existingReadings = {};          /* meter_id -> saved row on entry date */
+let warningSuppressDate = null;     /* hide "already available" right after our own save */
+
+const ENTRY_DRAFT_KEY = "energy_entry_drafts_v1";
+
+
+function formatDateDMY(date) {
+
+    const p = String(date || "").slice(0, 10).split("-");
+
+    return p.length === 3
+        ? p[2] + "-" + p[1] + "-" + p[0]
+        : String(date || "");
+
+}
+
+
+function loadDrafts() {
+
+    try {
+
+        const all =
+            JSON.parse(
+                localStorage.getItem(ENTRY_DRAFT_KEY) || "{}"
+            ) || {};
+
+        /* Drop drafts older than 30 days. */
+        const limit = Date.now() - 30 * 24 * 3600 * 1000;
+
+        Object.keys(all).forEach(d => {
+            if (!all[d] || (all[d].savedAt && new Date(all[d].savedAt).getTime() < limit)) {
+                delete all[d];
+            }
+        });
+
+        return all;
+
+    } catch (e) {
+
+        return {};
+
+    }
+
+}
+
+
+function storeDrafts(all) {
+
+    try {
+
+        localStorage.setItem(
+            ENTRY_DRAFT_KEY,
+            JSON.stringify(all)
+        );
+
+    } catch (e) {
+
+        console.error("Draft could not be stored:", e);
+
+    }
+
+}
+
+
+function currentEntryDate() {
+
+    const el = document.getElementById("entryDate");
+
+    return el ? el.value : "";
+
+}
+
+
+/* Remember what is typed in one field (only if it differs from what is
+   already saved for that meter on that date). */
+function recordDraftInput(input) {
+
+    const date = currentEntryDate();
+
+    if (!date || !input || !input.dataset.meterId) return;
+
+    const meterId = input.dataset.meterId;
+    const value = String(input.value || "").trim();
+
+    const saved = existingReadings[meterId];
+    const savedValue = saved ? String(saved.reading).trim() : "";
+
+    const all = loadDrafts();
+
+    const draft = all[date] || { enteredBy: "", values: {} };
+
+    if (value && value !== savedValue) {
+
+        draft.values[meterId] = value;
+
+        input.classList.add("has-draft");
+        input.classList.remove("has-saved");
+
+    } else {
+
+        delete draft.values[meterId];
+
+        input.classList.remove("has-draft");
+
+        if (saved && value === savedValue) input.classList.add("has-saved");
+
+    }
+
+    const by = document.getElementById("enteredBy");
+
+    draft.enteredBy = by ? by.value : draft.enteredBy;
+    draft.savedAt = new Date().toISOString();
+
+    if (Object.keys(draft.values).length) {
+        all[date] = draft;
+    } else {
+        delete all[date];
+    }
+
+    storeDrafts(all);
+
+    updateEntryBanners();
+
+}
+
+
+/* Safety net: write every visible field to the draft (tab switch / close). */
+function flushEntryDraft() {
+
+    document
+        .querySelectorAll("#entryTableBody .today-reading")
+        .forEach(recordDraftInput);
+
+}
+
+
+function clearDraftForSaved(date, records) {
+
+    const all = loadDrafts();
+
+    if (!all[date]) return;
+
+    records.forEach(r => delete all[date].values[r.meter_id]);
+
+    if (!Object.keys(all[date].values).length) delete all[date];
+
+    storeDrafts(all);
+
+}
+
+
+async function loadExistingReadings(date) {
+
+    existingReadings = {};
+
+    if (!date) return;
+
+    const rows =
+        await supabaseRequest(
+            "readings",
+            "GET",
+            null,
+            "?select=id,meter_id,reading,mf,entered_by,created_at,updated_at" +
+            "&reading_date=eq." + encodeURIComponent(date) +
+            "&limit=2000"
+        );
+
+    (rows || []).forEach(r => {
+        existingReadings[r.meter_id] = r;
+    });
+
+}
+
+
+function updateEntryBanners() {
+
+    const warn = document.getElementById("entryDateWarning");
+    const note = document.getElementById("entryDraftNotice");
+
+    if (!warn || !note) return;
+
+    const date = currentEntryDate();
+
+    warn.innerHTML = "";
+    note.innerHTML = "";
+
+    if (!date) return;
+
+    /* 1. Data already saved on this date (active meters only). */
+    const saved =
+        meters
+            .map(m => existingReadings[m.id])
+            .filter(Boolean);
+
+    if (saved.length && warningSuppressDate !== date) {
+
+        const last =
+            saved
+                .map(r => r.updated_at || r.created_at || "")
+                .sort()
+                .pop();
+
+        const lastText = formatSavedAt(last);
+
+        const inCat =
+            meters.filter(m =>
+                m.category === currentCategory &&
+                existingReadings[m.id]
+            ).length;
+
+        warn.innerHTML =
+            '<div class="entry-banner warn">⚠ Data is already available on ' +
+            escapeHtml(formatDateDMY(date)) + ' (' + saved.length +
+            ' reading(s) saved in total, ' + inCat +
+            ' in this category' +
+            (lastText ? ', last saved ' + escapeHtml(lastText) : '') +
+            '). The saved values are shown below. You can change them and click Save Readings to update.</div>';
+
+    }
+
+    /* 2. Auto-saved draft that has not been saved to the tracker yet. */
+    const draft = loadDrafts()[date];
+
+    const draftCount =
+        draft
+            ? Object.keys(draft.values || {})
+                .filter(id => meters.some(m => m.id === id)).length
+            : 0;
+
+    if (draftCount) {
+
+        note.innerHTML =
+            '<div class="entry-banner draft">✎ ' + draftCount +
+            ' unsaved reading(s) for ' + escapeHtml(formatDateDMY(date)) +
+            ' are auto-saved as a draft on this device. Click Save Readings to save them in the tracker.</div>';
+
+    }
+
+}
+
+
+/* Capture typing in any reading box, including after tab / category switch. */
+document.addEventListener("input", function (event) {
+
+    const el = event.target;
+
+    if (el && el.classList && el.classList.contains("today-reading")) {
+        recordDraftInput(el);
+    }
+
+});
+
+document.addEventListener("change", function (event) {
+
+    const el = event.target;
+
+    if (el && el.id === "enteredBy") {
+
+        const date = currentEntryDate();
+        const all = loadDrafts();
+
+        if (date && all[date]) {
+            all[date].enteredBy = el.value;
+            storeDrafts(all);
+        }
+
+    }
+
+});
+
+document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") flushEntryDraft();
+});
+
+window.addEventListener("pagehide", flushEntryDraft);
+window.addEventListener("beforeunload", flushEntryDraft);
+
+
+/* =========================================================
    ENTRY DATA
 ========================================================= */
 
@@ -5639,6 +5969,8 @@ async function loadEntryData() {
     if (!date) {
 
         previousReadings = {};
+        existingReadings = {};
+        updateEntryBanners();
 
 
         tbody.innerHTML = `
@@ -5692,6 +6024,10 @@ async function loadEntryData() {
     try {
 
         await loadPreviousReadings(
+            date
+        );
+
+        await loadExistingReadings(
             date
         );
 
@@ -5981,6 +6317,41 @@ function renderEntryTable() {
 
     tbody.innerHTML =
         html;
+
+
+    /* Show values already saved for this date, then any auto-saved draft. */
+    {
+        const draftForDate = loadDrafts()[date] || null;
+
+        const byEl = document.getElementById("enteredBy");
+
+        if (draftForDate && draftForDate.enteredBy && byEl && !byEl.value &&
+            Array.from(byEl.options).some(o => o.value === draftForDate.enteredBy)) {
+            byEl.value = draftForDate.enteredBy;
+        }
+
+        tbody.querySelectorAll(".today-reading").forEach(input => {
+
+            const id = input.dataset.meterId;
+            const saved = existingReadings[id];
+
+            if (saved && saved.reading != null) {
+                input.value = String(saved.reading);
+                input.classList.add("has-saved");
+            }
+
+            if (draftForDate && draftForDate.values && draftForDate.values[id] != null) {
+                input.value = draftForDate.values[id];
+                input.classList.remove("has-saved");
+                input.classList.add("has-draft");
+            }
+
+            if (input.value) calculateRowConsumption({ target: input });
+
+        });
+    }
+
+    updateEntryBanners();
 
 
     document
@@ -6523,6 +6894,10 @@ async function saveReadings() {
             "success"
         );
 
+
+        clearDraftForSaved(date, records);
+
+        warningSuppressDate = date;
 
         await loadEntryData();
 
