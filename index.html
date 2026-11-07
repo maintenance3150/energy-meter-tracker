@@ -588,6 +588,44 @@ td.meter-name {
     margin: 0;
 }
 
+.bulk-chip {
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 0 8px 8px 0;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    background: #f1f3f5;
+    color: #333;
+}
+
+.bulk-chip.ok { background: #d1e7dd; color: #0f5132; }
+.bulk-chip.warn { background: #fff3cd; color: #664d03; }
+.bulk-chip.bad { background: #f8d7da; color: #842029; }
+
+.bulk-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
+.bulk-table th, .bulk-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.bulk-table th { background: #f8f9fa; }
+
+.bulk-errors {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+    color: #842029;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
 .entry-banner {
     margin: 0 0 12px 0;
     padding: 12px 14px;
@@ -2325,6 +2363,12 @@ body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(scri
         ⬇ Download
     </button>
 
+    <button
+        class="tab-btn"
+        onclick="showTab('bulkTab',this)">
+        ⬆ Bulk Upload
+    </button>
+
 </div>
 
 
@@ -2999,6 +3043,83 @@ body.auth-locked > :not(#trackerLoginScreen):not(#trackerRecoveryModal):not(scri
 </div>
 
 </div>
+
+</div>
+
+</div>
+
+
+<!-- =======================================================
+     BULK UPLOAD
+======================================================== -->
+
+<div id="bulkTab" class="tab-content">
+
+<div class="card" style="padding:18px;">
+
+    <h2 style="margin:0 0 6px 0;">⬆ Bulk Upload of Readings</h2>
+
+    <p style="margin:0 0 14px 0;color:#555;">
+        Download a format, fill it in Excel, then upload it here. Meter rows always come from
+        the current Meter Master, so meters you add or delete later appear in the format automatically.
+    </p>
+
+    <div style="font-weight:700;margin-bottom:6px;">Step 1 - Download the format</div>
+
+    <div class="download-fields">
+
+        <div class="search-field">
+            <label>FROM DATE</label>
+            <input type="date" id="bulkFrom">
+        </div>
+
+        <div class="search-field">
+            <label>TO DATE</label>
+            <input type="date" id="bulkTo">
+        </div>
+
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 4px 0;">
+
+        <button class="btn-green" onclick="downloadBulkFormat('new')">
+            ⬇ Empty Format (dates with no data)
+        </button>
+
+        <button class="btn-red" onclick="downloadBulkFormat('edit')">
+            ⬇ Edit Format (dates already entered)
+        </button>
+
+    </div>
+
+    <div style="font-size:12px;color:#666;margin-bottom:16px;">
+        Empty Format has one column for each date in the range that has no readings yet.
+        Edit Format has one column for each date that already has readings, filled with the saved values.
+        Pick Entered By from the drop-down at the top of each date column.
+    </div>
+
+    <div style="font-weight:700;margin-bottom:6px;">Step 2 - Upload the filled file</div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+
+        <input type="file" id="bulkFile" accept=".xlsx"
+               onchange="resetBulkPreview()">
+
+        <button class="btn-red" onclick="checkBulkFile()">
+            🔍 Check File
+        </button>
+
+    </div>
+
+    <div id="bulkStatus" style="margin-top:12px;"></div>
+
+    <div id="bulkPreview" style="margin-top:12px;"></div>
+
+    <div id="bulkConfirmArea" style="margin-top:12px;display:none;">
+        <button class="btn-green" id="bulkConfirmBtn" onclick="saveBulkPlan()">
+            ✓ Confirm &amp; Save
+        </button>
+    </div>
 
 </div>
 
@@ -9515,5 +9636,722 @@ function escapeHtml(
 
 </script>
 
+
+<script>
+/* =========================================================
+   BULK UPLOAD OF READINGS
+========================================================= */
+
+const BULK_MAGIC = "ENERGY_METER_BULK_V1";
+const BULK_FIRST_DATE_COL = 5;   /* column E */
+
+let bulkPlan = null;
+
+const BULK_CATEGORY_FILL = {
+    "Power Control Center (PCC) panel": "FFE3F2FD",
+    "DG KWH": "FFFFF3E0",
+    "Water Base - MCC panels": "FFE0F7FA",
+    "Solvent Base - MCC panels": "FFF3E5F5"
+};
+
+
+function bulkIso(d) {
+    const p = n => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+function bulkToday() {
+    return bulkIso(new Date());
+}
+
+function bulkDatesBetween(from, to) {
+    const out = [];
+    const d = new Date(from + "T00:00:00");
+    const end = new Date(to + "T00:00:00");
+    while (d <= end) {
+        out.push(bulkIso(d));
+        d.setDate(d.getDate() + 1);
+    }
+    return out;
+}
+
+function bulkDMY(iso) {
+    const p = String(iso).split("-");
+    return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : String(iso);
+}
+
+function bulkCellPlain(cell) {
+    let v = cell.value;
+    if (v && typeof v === "object" && !(v instanceof Date)) {
+        if ("result" in v) v = v.result;
+        else if (v.richText) v = v.richText.map(t => t.text).join("");
+        else if (v.text !== undefined) v = v.text;
+    }
+    return v == null ? "" : v;
+}
+
+function bulkParseDate(raw) {
+    if (raw instanceof Date) {
+        if (isNaN(raw.getTime())) return null;
+        const p = n => String(n).padStart(2, "0");
+        return raw.getUTCFullYear() + "-" + p(raw.getUTCMonth() + 1) + "-" + p(raw.getUTCDate());
+    }
+    const t = String(raw || "").trim();
+    let y, m, d, x;
+    if ((x = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(t))) { d = +x[1]; m = +x[2]; y = +x[3]; }
+    else if ((x = /^(\d{4})-(\d{2})-(\d{2})/.exec(t))) { y = +x[1]; m = +x[2]; d = +x[3]; }
+    else return null;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+    const p = n => String(n).padStart(2, "0");
+    return y + "-" + p(m) + "-" + p(d);
+}
+
+function bulkSameReading(meter, a, b) {
+    if (isRunHourMeter(meter)) {
+        const x = timeToSeconds(String(a)), y = timeToSeconds(String(b));
+        return x !== null && y !== null ? x === y : String(a).trim() === String(b).trim();
+    }
+    return Number(a) === Number(b);
+}
+
+
+/* ---------- STEP 1: DOWNLOAD FORMAT ---------- */
+
+async function downloadBulkFormat(mode) {
+
+    const status = document.getElementById("bulkStatus");
+    const from = document.getElementById("bulkFrom").value;
+    const to = document.getElementById("bulkTo").value;
+
+    if (!from || !to) { showStatus(status, "Please select From Date and To Date.", "error"); return; }
+    if (from > to) { showStatus(status, "From Date cannot be after To Date.", "error"); return; }
+
+    const days = bulkDatesBetween(from, to);
+
+    if (days.length > 92) { showStatus(status, "Please select 92 days or fewer at a time.", "error"); return; }
+    if (typeof ExcelJS === "undefined") { showStatus(status, "Excel library did not load. Check internet and refresh.", "error"); return; }
+    if (!names.length) { showStatus(status, "Add at least one name in Entered By (Manage Names) first.", "error"); return; }
+
+    showStatus(status, "Preparing format...", "info");
+
+    try {
+
+        const rows = await fetchReadingsInPages(from, to, false);
+        const activeIds = new Set(meters.map(m => m.id));
+
+        const byDate = {};
+        rows.forEach(r => {
+            if (!activeIds.has(r.meter_id)) return;
+            const d = normalizeDateOnly(r.reading_date);
+            (byDate[d] = byDate[d] || {})[r.meter_id] = r;
+        });
+
+        const today = bulkToday();
+
+        const dates = mode === "new"
+            ? days.filter(d => !byDate[d] && d <= today)
+            : days.filter(d => byDate[d]);
+
+        if (!dates.length) {
+            showStatus(status, mode === "new"
+                ? "No empty dates in this range: every date already has readings. Use the Edit Format instead."
+                : "No saved readings in this range. Use the Empty Format instead.", "error");
+            return;
+        }
+
+        const list = sortMetersWithDeleted(meters);
+
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet("Readings", { views: [{ state: "frozen", xSplit: 4, ySplit: 2 }] });
+        const help = wb.addWorksheet("Instructions");
+        const lists = wb.addWorksheet("Lists", { state: "hidden" });
+        const meta = wb.addWorksheet("Meta", { state: "hidden" });
+
+        /* Lists + Meta */
+        const sortedNames = names.map(n => n.name).sort((a, b) => String(a).localeCompare(String(b)));
+        sortedNames.forEach((n, i) => { lists.getCell(i + 1, 1).value = n; });
+        const listRef = "Lists!$A$1:$A$" + Math.max(sortedNames.length, 1);
+
+        meta.getCell("A1").value = BULK_MAGIC;
+        meta.getCell("A2").value = mode;
+        meta.getCell("A3").value = from;
+        meta.getCell("A4").value = to;
+        meta.getCell("A5").value = new Date().toISOString();
+
+        /* Instructions */
+        const lines = mode === "new"
+            ? [
+                "EMPTY FORMAT - for dates that have no readings yet",
+                "",
+                "1. Choose Entered By from the drop-down in row 2 of each date column.",
+                "2. Type the reading of each meter under its date. Leave a cell blank if there is no reading.",
+                "3. Energy meters accept numbers only. Run hour meters accept hours (678.5) or H:MM:SS (678:32:50).",
+                "4. Do not change the meter rows, the date headers or the hidden first column.",
+                "5. Save the file and upload it in the tracker (Bulk Upload tab > Step 2).",
+                "6. If a date already received readings before you upload, those cells are skipped, not overwritten."
+              ]
+            : [
+                "EDIT FORMAT - for dates that already have readings",
+                "",
+                "1. Saved readings are already filled in. Change only the cells you want to correct.",
+                "2. Blank cells (for example a newly added meter) can be filled to add a reading.",
+                "3. Clearing a cell does not delete the saved reading.",
+                "4. Choose Entered By from the drop-down in row 2. It is applied to the readings you change or add.",
+                "5. Energy meters accept numbers only. Run hour meters accept hours (678.5) or H:MM:SS (678:32:50).",
+                "6. Do not change the meter rows, the date headers or the hidden first column.",
+                "7. Save the file and upload it in the tracker (Bulk Upload tab > Step 2)."
+              ];
+        lines.forEach((t, i) => { help.getCell(i + 1, 1).value = t; });
+        help.getCell(1, 1).font = { bold: true, size: 14 };
+        help.getColumn(1).width = 110;
+
+        /* Headers */
+        ws.getColumn(1).hidden = true;
+        ws.getColumn(2).width = 32;
+        ws.getColumn(3).width = 30;
+        ws.getColumn(4).width = 16;
+
+        const headStyle = {
+            font: { bold: true, color: { argb: "FFFFFFFF" } },
+            fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFB71C1C" } },
+            alignment: { horizontal: "center", vertical: "middle", wrapText: true },
+            border: { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } }
+        };
+
+        ["Meter ID", "Category", "Meter", "Unit / Type"].forEach((h, i) => {
+            const c = ws.getCell(1, i + 1);
+            c.value = h;
+            Object.assign(c, headStyle);
+        });
+
+        const thin = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+
+        ws.mergeCells("B2:D2");
+        const eb = ws.getCell("B2");
+        eb.value = "ENTERED BY  (select from drop-down)";
+        eb.font = { bold: true };
+        eb.alignment = { horizontal: "right", vertical: "middle" };
+        eb.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFEB9C" } };
+
+        dates.forEach((d, i) => {
+
+            const col = BULK_FIRST_DATE_COL + i;
+            ws.getColumn(col).width = 16;
+
+            const h = ws.getCell(1, col);
+            h.value = bulkDMY(d);
+            h.numFmt = "@";
+            Object.assign(h, headStyle);
+
+            /* Entered By drop-down (prefilled in edit mode) */
+            const e = ws.getCell(2, col);
+            e.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFEB9C" } };
+            e.border = thin;
+            e.alignment = { horizontal: "center" };
+            e.protection = { locked: false };
+
+            if (mode === "edit") {
+                const count = {};
+                Object.values(byDate[d] || {}).forEach(r => {
+                    if (r.entered_by) count[r.entered_by] = (count[r.entered_by] || 0) + 1;
+                });
+                const top = Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+                if (top) e.value = top;
+            }
+
+            e.dataValidation = {
+                type: "list",
+                allowBlank: true,
+                formulae: [listRef],
+                showErrorMessage: true,
+                errorStyle: "stop",
+                errorTitle: "Select a name",
+                error: "Choose a name from the drop-down list (use Manage Names to add new names)."
+            };
+
+        });
+
+        /* Meter rows */
+        list.forEach((meter, idx) => {
+
+            const r = idx + 3;
+            const run = isRunHourMeter(meter);
+            const fill = { type: "pattern", pattern: "solid", fgColor: { argb: BULK_CATEGORY_FILL[meter.category] || "FFF5F5F5" } };
+
+            [meter.id, meter.category, meter.name, run ? "Run hours" : (meter.unit || "")].forEach((v, i) => {
+                const c = ws.getCell(r, i + 1);
+                c.value = v;
+                c.fill = fill;
+                c.border = thin;
+            });
+
+            dates.forEach((d, i) => {
+
+                const col = BULK_FIRST_DATE_COL + i;
+                const c = ws.getCell(r, col);
+                c.border = thin;
+                c.protection = { locked: false };
+
+                const existing = (byDate[d] || {})[meter.id];
+
+                if (run) {
+
+                    c.numFmt = "@";
+
+                    if (existing && existing.reading != null) c.value = String(existing.reading);
+
+                    const addr = c.address;
+
+                    c.dataValidation = {
+                        type: "custom",
+                        allowBlank: true,
+                        formulae: ['ISNUMBER(--SUBSTITUTE(' + addr + ',":",""))'],
+                        showErrorMessage: true,
+                        errorStyle: "stop",
+                        errorTitle: "Invalid run hours",
+                        error: "Enter hours (e.g. 678.5) or H:MM:SS (e.g. 678:32:50)."
+                    };
+
+                } else {
+
+                    if (existing && existing.reading != null) {
+                        const n = Number(existing.reading);
+                        c.value = Number.isFinite(n) ? n : String(existing.reading);
+                    }
+
+                    c.dataValidation = {
+                        type: "decimal",
+                        operator: "greaterThanOrEqual",
+                        allowBlank: true,
+                        formulae: [0],
+                        showErrorMessage: true,
+                        errorStyle: "stop",
+                        errorTitle: "Invalid reading",
+                        error: "Enter a number (0 or more)."
+                    };
+
+                }
+
+            });
+
+        });
+
+        /* Lock the structure, leave reading cells editable. */
+        try {
+            await ws.protect("", {
+                selectLockedCells: true,
+                selectUnlockedCells: true,
+                formatColumns: true,
+                formatRows: true
+            });
+        } catch (e) {
+            console.error("Sheet protection skipped:", e);
+        }
+
+        const buffer = await wb.xlsx.writeBuffer();
+
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (mode === "new" ? "Readings_Empty_Format_" : "Readings_Edit_Format_") +
+            from + "_to_" + to + ".xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+        showStatus(status,
+            "Format downloaded with " + dates.length + " date column(s) and " + list.length + " meter row(s).",
+            "success");
+
+    } catch (error) {
+
+        console.error(error);
+        showStatus(status, "Unable to create format: " + error.message, "error");
+
+    }
+
+}
+
+
+/* ---------- STEP 2: CHECK FILE ---------- */
+
+function resetBulkPreview() {
+    bulkPlan = null;
+    const pv = document.getElementById("bulkPreview");
+    const ca = document.getElementById("bulkConfirmArea");
+    if (pv) pv.innerHTML = "";
+    if (ca) ca.style.display = "none";
+}
+
+
+async function checkBulkFile() {
+
+    const status = document.getElementById("bulkStatus");
+    const file = document.getElementById("bulkFile").files[0];
+
+    resetBulkPreview();
+
+    if (!file) { showStatus(status, "Please choose the filled Excel file first.", "error"); return; }
+    if (typeof ExcelJS === "undefined") { showStatus(status, "Excel library did not load. Check internet and refresh.", "error"); return; }
+
+    showStatus(status, "Checking file...", "info");
+
+    try {
+
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(await file.arrayBuffer());
+
+        const meta = wb.getWorksheet("Meta");
+        const ws = wb.getWorksheet("Readings");
+
+        if (!meta || !ws || String(bulkCellPlain(meta.getCell("A1"))) !== BULK_MAGIC) {
+            showStatus(status, "This is not a tracker format file. Download the Empty or Edit format from this tab and fill that file.", "error");
+            return;
+        }
+
+        const mode = String(bulkCellPlain(meta.getCell("A2"))) === "edit" ? "edit" : "new";
+        const today = bulkToday();
+        const errors = [];
+
+        /* Date columns */
+        const cols = [];
+        const seen = {};
+
+        for (let c = BULK_FIRST_DATE_COL; c <= ws.columnCount; c++) {
+
+            const raw = bulkCellPlain(ws.getCell(1, c));
+            if (raw === "") continue;
+
+            const date = bulkParseDate(raw);
+
+            if (!date) { errors.push("Column " + ws.getColumn(c).letter + ": header is not a valid date."); continue; }
+            if (seen[date]) { errors.push("Date " + bulkDMY(date) + " appears in more than one column."); continue; }
+
+            seen[date] = true;
+
+            cols.push({ col: c, date, enteredBy: "", entries: [] });
+
+        }
+
+        if (!cols.length && !errors.length) errors.push("No date columns found in the file.");
+
+        /* Cell values */
+        for (let r = 3; r <= ws.rowCount; r++) {
+
+            const id = String(bulkCellPlain(ws.getCell(r, 1)) || "").trim();
+            const meter = id ? meters.find(m => m.id === id) : null;
+
+            for (const cd of cols) {
+
+                const cell = ws.getCell(r, cd.col);
+                const raw = bulkCellPlain(cell);
+
+                if (raw === "" || raw == null) continue;
+
+                let text = (raw instanceof Date) ? "" : String(raw).trim();
+
+                if (!text && !(raw instanceof Date)) continue;
+
+                const where = "Row " + r + ", " + bulkDMY(cd.date) + ": ";
+
+                if (!meter) {
+                    errors.push(where + "meter not recognised (it may have been deleted or the sheet was edited).");
+                    continue;
+                }
+
+                const label = meter.name + " - ";
+
+                if (raw instanceof Date) {
+                    errors.push(where + label + "cell holds a date/time value. Type run hours as text, e.g. 678:32:50.");
+                    continue;
+                }
+
+                if (isRunHourMeter(meter)) {
+
+                    if (typeof raw === "number") text = String(raw);
+
+                    if (timeToSeconds(text) === null) {
+                        errors.push(where + label + "invalid run hours '" + text + "'. Use 678.5 or 678:32:50.");
+                        continue;
+                    }
+
+                } else {
+
+                    const clean = text.replace(/,/g, "");
+
+                    if (!/^\d+(\.\d+)?$/.test(clean)) {
+                        errors.push(where + label + "'" + text + "' is not a valid number.");
+                        continue;
+                    }
+
+                    text = String(Number(clean));
+
+                }
+
+                cd.entries.push({ meter, row: r, text });
+
+            }
+
+        }
+
+        /* Entered By per date */
+        const nameMap = {};
+        names.forEach(n => { nameMap[String(n.name).trim().toLowerCase()] = n.name; });
+
+        cols.forEach(cd => {
+
+            if (!cd.entries.length) return;
+
+            if (cd.date > today) errors.push("Date " + bulkDMY(cd.date) + " is in the future.");
+
+            const by = String(bulkCellPlain(ws.getCell(2, cd.col)) || "").trim();
+
+            if (!by) {
+                errors.push("Date " + bulkDMY(cd.date) + ": Entered By is not selected (row 2).");
+            } else if (!nameMap[by.toLowerCase()]) {
+                errors.push("Date " + bulkDMY(cd.date) + ": Entered By '" + by + "' is not in the names list.");
+            } else {
+                cd.enteredBy = nameMap[by.toLowerCase()];
+            }
+
+        });
+
+        const filled = cols.filter(cd => cd.entries.length);
+
+        if (!filled.length && !errors.length) {
+            showStatus(status, "The file has no readings filled in.", "error");
+            return;
+        }
+
+        /* Compare with what is already saved */
+        const inserts = [];
+        const updates = [];
+        const skipped = [];
+        let unchanged = 0;
+        const perDate = [];
+
+        if (filled.length) {
+
+            const minD = filled.map(c => c.date).sort()[0];
+            const maxD = filled.map(c => c.date).sort().pop();
+            const wanted = new Set(filled.map(c => c.date));
+
+            const rows = await fetchReadingsInPages(minD, maxD, false);
+            const existing = {};
+
+            rows.forEach(r => {
+                const d = normalizeDateOnly(r.reading_date);
+                if (wanted.has(d)) existing[r.meter_id + "|" + d] = r;
+            });
+
+            filled.forEach(cd => {
+
+                const stat = { date: cd.date, by: cd.enteredBy, added: 0, changed: 0, same: 0, skipped: 0 };
+
+                cd.entries.forEach(en => {
+
+                    const ex = existing[en.meter.id + "|" + cd.date];
+
+                    if (!ex) {
+                        inserts.push({ meter: en.meter, date: cd.date, text: en.text, by: cd.enteredBy });
+                        stat.added++;
+                    } else if (bulkSameReading(en.meter, ex.reading, en.text)) {
+                        unchanged++;
+                        stat.same++;
+                    } else if (mode === "new") {
+                        skipped.push(bulkDMY(cd.date) + " - " + en.meter.name + " already has " + ex.reading + " (not overwritten).");
+                        stat.skipped++;
+                    } else {
+                        updates.push({ id: ex.id, meter: en.meter, date: cd.date, text: en.text, by: cd.enteredBy, old: ex.reading });
+                        stat.changed++;
+                    }
+
+                });
+
+                perDate.push(stat);
+
+            });
+
+        }
+
+        bulkPlan = { mode, inserts, updates, errors };
+
+        renderBulkPreview(mode, inserts.length, updates.length, unchanged, skipped, errors, perDate);
+
+        if (errors.length) {
+            showStatus(status, "Fix the errors below in your Excel file and check it again. Nothing has been saved.", "error");
+        } else if (!inserts.length && !updates.length) {
+            showStatus(status, "Nothing new to save: all readings match what is already saved.", "info");
+        } else {
+            showStatus(status, "File checked. Review the summary and click Confirm & Save.", "success");
+            document.getElementById("bulkConfirmArea").style.display = "block";
+        }
+
+    } catch (error) {
+
+        console.error(error);
+        showStatus(status, "Unable to read the file: " + error.message, "error");
+
+    }
+
+}
+
+
+function renderBulkPreview(mode, nIns, nUpd, nSame, skipped, errors, perDate) {
+
+    let h = '<div>' +
+        '<span class="bulk-chip">' + (mode === "edit" ? "Edit format" : "Empty format") + '</span>' +
+        '<span class="bulk-chip ok">New: ' + nIns + '</span>' +
+        '<span class="bulk-chip ok">Updated: ' + nUpd + '</span>' +
+        '<span class="bulk-chip">Unchanged: ' + nSame + '</span>' +
+        (skipped.length ? '<span class="bulk-chip warn">Skipped: ' + skipped.length + '</span>' : '') +
+        (errors.length ? '<span class="bulk-chip bad">Errors: ' + errors.length + '</span>' : '') +
+        '</div>';
+
+    if (errors.length) {
+        h += '<ul class="bulk-errors">' +
+            errors.slice(0, 60).map(e => '<li>' + escapeHtml(e) + '</li>').join("") +
+            (errors.length > 60 ? '<li>...and ' + (errors.length - 60) + ' more</li>' : '') +
+            '</ul>';
+    }
+
+    if (skipped.length) {
+        h += '<div style="margin-top:8px;font-size:13px;color:#664d03;">' +
+            skipped.slice(0, 30).map(e => escapeHtml(e)).join("<br>") +
+            (skipped.length > 30 ? '<br>...and ' + (skipped.length - 30) + ' more' : '') +
+            '<br>Use the Edit Format to change dates that already have readings.</div>';
+    }
+
+    if (perDate.length) {
+        h += '<div style="overflow-x:auto;"><table class="bulk-table"><thead><tr>' +
+            '<th>Date</th><th>Entered By</th><th>New</th><th>Updated</th><th>Unchanged</th>' +
+            (skipped.length ? '<th>Skipped</th>' : '') +
+            '</tr></thead><tbody>' +
+            perDate.map(p =>
+                '<tr><td>' + escapeHtml(bulkDMY(p.date)) + '</td><td>' + escapeHtml(p.by || "-") +
+                '</td><td>' + p.added + '</td><td>' + p.changed + '</td><td>' + p.same + '</td>' +
+                (skipped.length ? '<td>' + p.skipped + '</td>' : '') + '</tr>'
+            ).join("") +
+            '</tbody></table></div>';
+    }
+
+    document.getElementById("bulkPreview").innerHTML = h;
+
+}
+
+
+/* ---------- STEP 3: SAVE ---------- */
+
+async function saveBulkPlan() {
+
+    const status = document.getElementById("bulkStatus");
+    const btn = document.getElementById("bulkConfirmBtn");
+
+    if (!bulkPlan || bulkPlan.errors.length) return;
+    if (!bulkPlan.inserts.length && !bulkPlan.updates.length) return;
+
+    const plan = bulkPlan;
+
+    btn.disabled = true;
+
+    try {
+
+        const savedAt = new Date().toISOString();
+        const mfOf = m => isRunHourMeter(m) ? null : Number(m.mf || 0);
+
+        let done = 0;
+        const total = plan.inserts.length + plan.updates.length;
+
+        /* New readings in batches */
+        for (let i = 0; i < plan.inserts.length; i += 200) {
+
+            const chunk = plan.inserts.slice(i, i + 200).map(x => ({
+                meter_id: x.meter.id,
+                reading_date: x.date,
+                reading: x.text,
+                mf: mfOf(x.meter),
+                entered_by: x.by,
+                updated_at: savedAt
+            }));
+
+            await supabaseRequest("readings", "POST", chunk);
+
+            done += chunk.length;
+            showStatus(status, "Saving... " + done + " of " + total, "info");
+
+        }
+
+        /* Changed readings, a few at a time */
+        for (let i = 0; i < plan.updates.length; i += 8) {
+
+            await Promise.all(
+                plan.updates.slice(i, i + 8).map(x =>
+                    supabaseRequest(
+                        "readings",
+                        "PATCH",
+                        {
+                            reading: x.text,
+                            mf: mfOf(x.meter),
+                            entered_by: x.by,
+                            updated_at: savedAt
+                        },
+                        "?id=eq." + encodeURIComponent(x.id)
+                    )
+                )
+            );
+
+            done += Math.min(8, plan.updates.length - i);
+            showStatus(status, "Saving... " + done + " of " + total, "info");
+
+        }
+
+        showStatus(status,
+            "Bulk upload complete: " + plan.inserts.length + " new and " +
+            plan.updates.length + " updated reading(s) saved.",
+            "success");
+
+        resetBulkPreview();
+        document.getElementById("bulkFile").value = "";
+
+        if (typeof currentEntryDate === "function" && currentEntryDate()) loadEntryData();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showStatus(status,
+            "Upload stopped: " + error.message +
+            ". Some readings may already be saved. Click Check File again to see what is still pending.",
+            "error");
+
+    } finally {
+
+        btn.disabled = false;
+
+    }
+
+}
+
+
+window.addEventListener("load", function () {
+
+    const to = document.getElementById("bulkTo");
+    const from = document.getElementById("bulkFrom");
+
+    if (to && from && !to.value) {
+        const d = new Date();
+        to.value = bulkIso(d);
+        d.setDate(d.getDate() - 6);
+        from.value = bulkIso(d);
+    }
+
+});
+</script>
 </body>
 </html>
